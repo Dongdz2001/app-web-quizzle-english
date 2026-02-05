@@ -1,0 +1,15 @@
+---
+description: Undo must not be implemented by deleting files; revert content only
+alwaysApply: true
+---
+
+# Undo: Không xoá file
+
+- **Không cho phép** thực hiện undo bằng cách xoá file (delete file).
+- Undo chỉ được thực hiện bằng cách **hoàn tác thay đổi nội dung** (revert edits trong file), không được dùng thao tác xoá file để “undo”.
+- Khi implement tính năng undo: sử dụng lịch sử chỉnh sửa (edit history), restore nội dung cũ, hoặc revert changes — **không** gọi delete/xoá file.
+
+## Ví dụ
+
+- ❌ **Sai**: Undo = xoá file rồi tạo lại, hoặc dùng delete file để “quay lại” trạng thái.
+- ✅ **Đúng**: Undo = revert nội dung file về phiên bản trước (edit in place, restore content).

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,6 +19,10 @@ class TopicDetailScreen extends StatefulWidget {
 }
 
 class _TopicDetailScreenState extends State<TopicDetailScreen> {
+  /// Trên mobile landscape: true = hiện AppBar, false = ẩn (vuốt xuống để hiện).
+  bool _appBarVisible = false;
+  Timer? _hideAppBarTimer;
+
   @override
   void initState() {
     super.initState();
@@ -30,10 +36,20 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
 
   @override
   void dispose() {
+    _hideAppBarTimer?.cancel();
     if (!kIsWeb) {
       SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     }
     super.dispose();
+  }
+
+  void _showAppBarTemporarily() {
+    if (!mounted) return;
+    setState(() => _appBarVisible = true);
+    _hideAppBarTimer?.cancel();
+    _hideAppBarTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _appBarVisible = false);
+    });
   }
 
   @override
@@ -56,77 +72,34 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
           return const SizedBox();
         }
 
+        final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+        final hideAppBarInLandscape = !kIsWeb && isLandscape && !_appBarVisible;
+
         return Scaffold(
-          appBar: AppBar(
-            title: Text(topic.name),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              onPressed: () => Navigator.pop(context),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.play_circle_outline),
-                onPressed: topic.words.isEmpty
-                    ? null
-                    : () => Navigator.pushNamed(
-                          context,
-                          '/learn',
-                          arguments: topicId,
-                        ),
-              ),
-              IconButton(
-                icon: Icon(Icons.extension),
-                onPressed: topic.words.isEmpty
-                    ? null
-                    : () => Navigator.pushNamed(
-                          context,
-                          '/practice',
-                          arguments: topicId,
-                        ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.quiz_outlined),
-                onPressed: topic.words.isEmpty
-                    ? null
-                    : () => Navigator.pushNamed(
-                          context,
-                          '/quiz',
-                          arguments: topicId,
-                        ),
-              ),
-            ],
-          ),
+          appBar: hideAppBarInLandscape
+              ? null
+              : _buildAppBar(context, topic.name, topicId, topic.words.isEmpty),
           body: Column(
                 children: [
-                  // Mô tả và nút action: giữ maxWidth cho gọn
-                  if ((topic.description?.isNotEmpty ?? false))
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: kIsWeb ? 1200 : 900),
-                        child: Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.fromLTRB(
-                            kIsWeb ? 8 : 16,
-                            16,
-                            kIsWeb ? 8 : 16,
-                            8,
-                          ),
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            topic.description!,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
+                  // Chạm vào vùng trên (landscape mobile) để hiện lại AppBar — dùng tap thay vì vuốt xuống để tránh trùng cử chỉ hệ thống
+                  if (isLandscape && !kIsWeb)
+                    GestureDetector(
+                      onTap: _showAppBarTemporarily,
+                      behavior: HitTestBehavior.translucent,
+                      child: SizedBox(
+                        height: 48,
+                        width: double.infinity,
+                        child: Center(
+                          child: _appBarVisible
+                              ? null
+                              : Icon(
+                                  Icons.keyboard_arrow_down,
+                                  color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                                  size: 28,
+                                ),
                         ),
                       ),
                     ),
-                  Align(
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: kIsWeb ? 1200 : 900),
-                      child: _buildActionButtons(context, topicId, topic.words),
-                    ),
-                  ),
                   // Vùng đám mây: không giới hạn maxWidth, full màn hình để InteractiveViewer tự do
                   Expanded(
                     child: topic.words.isEmpty
@@ -194,42 +167,41 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     );
   }
 
-  Widget _buildActionButtons(BuildContext context, String topicId, List<Vocabulary> words) {
-    if (words.isEmpty) return const SizedBox();
-    final padH = kIsWeb ? 8.0 : 16.0;
-
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: padH, vertical: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(128),
+  PreferredSizeWidget _buildAppBar(
+    BuildContext context,
+    String topicName,
+    String topicId,
+    bool wordsEmpty,
+  ) {
+    return AppBar(
+      title: Text(topicName),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () => Navigator.pop(context),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/learn', arguments: topicId),
-              icon: const Icon(Icons.school),
-              label: const Text('Học'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/practice', arguments: topicId),
-              icon: Icon(Icons.extension),
-              label: const Text('Luyện tập'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/quiz', arguments: topicId),
-              icon: const Icon(Icons.quiz),
-              label: const Text('Quiz'),
-            ),
-          ),
-        ],
-      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.school_outlined),
+          tooltip: 'Học',
+          onPressed: wordsEmpty
+              ? null
+              : () => Navigator.pushNamed(context, '/learn', arguments: topicId),
+        ),
+        IconButton(
+          icon: const Icon(Icons.fitness_center_outlined),
+          tooltip: 'Luyện tập',
+          onPressed: wordsEmpty
+              ? null
+              : () => Navigator.pushNamed(context, '/practice', arguments: topicId),
+        ),
+        IconButton(
+          icon: const Icon(Icons.quiz_outlined),
+          tooltip: 'Quiz',
+          onPressed: wordsEmpty
+              ? null
+              : () => Navigator.pushNamed(context, '/quiz', arguments: topicId),
+        ),
+      ],
     );
   }
 
