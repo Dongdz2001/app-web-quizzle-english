@@ -1,10 +1,23 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show SystemMouseCursors;
 import '../models/vocabulary.dart';
 import 'cloud_size_config.dart';
 import 'cloud_widget.dart';
+
+/// Tên người tạo hiển thị trên label ở góc đám mây.
+/// Đổi giá trị này để thay tên hiển thị.
+const String kCreatorDisplayName = 'Nguyễn Trần Bảo Linh';
+
+/// Các thông số vị trí/size cho label người tạo.
+/// Bạn chỉ cần chỉnh các hằng số này để đổi vị trí & kích thước
+/// mà không phải sửa sâu trong widget.
+const double kCreatorLabelWidth = 100;          // độ rộng label (px)
+const double kCreatorLabelHeight = 18;         // chiều cao label (px)
+const double kCreatorLabelTopOffset = 4;       // label lệch theo trục Y so với đám mây
+const double kCreatorLabelRightOffset = 10;     // label lệch theo trục X so với đám mây
+const double kCreatorLabelTextRightPadding = 5; // chữ lùi vào trong label từ mép phải
+const double kCreatorLabelTextTopPadding = 2;    // chữ dịch xuống/dịch lên trong label
 
 /// Quản lý animation và vị trí từ vựng theo quỹ đạo vòng tròn đồng tâm (cách đều, đối xứng tâm).
 class TopicCloudView extends StatefulWidget {
@@ -290,7 +303,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
   }
 
   Widget _cloudContent(_WordPlacement p) {
-    return CloudWidget(
+    final cloud = CloudWidget(
       size: p.cloudSize,
       onTap: () => widget.onWordTap(p.word),
       onLongPress: () => widget.onWordLongPress(p.word),
@@ -317,6 +330,19 @@ class _TopicCloudViewState extends State<TopicCloudView>
           ),
         ],
       ),
+    );
+
+    // Gắn label nhỏ ở góc trên bên phải đám mây.
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        cloud,
+        Positioned(
+          top: kCreatorLabelTopOffset,
+          right: kCreatorLabelRightOffset,
+          child: _CreatorLabel(name: kCreatorDisplayName),
+        ),
+      ],
     );
   }
 }
@@ -426,6 +452,54 @@ class _GuideHint extends StatelessWidget {
               text: text!,
             )
           : const SizedBox.shrink(key: ValueKey('guide-empty')),
+    );
+  }
+}
+
+/// Label ruy băng nhỏ để hiển thị tên người tạo.
+class _CreatorLabel extends StatelessWidget {
+  final String name;
+
+  const _CreatorLabel({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: kCreatorLabelWidth,
+      height: kCreatorLabelHeight,
+      child: Stack(
+        alignment: Alignment.centerRight,
+        children: [
+          Image.asset(
+            'assets/label.png',
+            width: kCreatorLabelWidth,
+            height: kCreatorLabelHeight,
+            // Stretch ảnh theo đúng kích thước label, để bạn
+            // có thể tự tăng/giảm kCreatorLabelWidth/Height
+            // mà nền ruy băng vẫn fill toàn bộ vùng này.
+            fit: BoxFit.fill,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(
+              right: kCreatorLabelTextRightPadding,
+              top: kCreatorLabelTextTopPadding,
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                name,
+                softWrap: false,
+                style: const TextStyle(
+                  fontSize: 8, // cỡ chữ gốc, sẽ tự thu nhỏ nếu tràn
+                  fontWeight: FontWeight.w500,
+                  color: Color.fromARGB(255, 98, 97, 97),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
