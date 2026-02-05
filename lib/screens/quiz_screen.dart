@@ -169,8 +169,11 @@ class _QuizScreenState extends State<QuizScreen> {
                   _selectedAnswer = index;
                   _showResult = true;
                   _isCorrect = correct;
-                  if (correct) _correctCount++;
-                  else _wrongCount++;
+                  if (correct) {
+                    _correctCount++;
+                  } else {
+                    _wrongCount++;
+                  }
                 });
               },
               style: ElevatedButton.styleFrom(

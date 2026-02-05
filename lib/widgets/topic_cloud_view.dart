@@ -145,6 +145,27 @@ class _TopicCloudViewState extends State<TopicCloudView>
                   for (var i = 0; i < _placements.length; i++)
                     _buildWordCloud(_placements[i], index: i),
                   _buildCenterTopic(),
+                  if (kIsWeb)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        ignoring: true,
+                        child: Align(
+                          alignment: Alignment.topRight,
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.only(top: 24, right: 24),
+                            child: _GuideHint(
+                              text: _hoveredPlacementIndex != null
+                                  ? _fullInfoText(
+                                      _placements[_hoveredPlacementIndex!]
+                                          .word,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             );
@@ -231,29 +252,32 @@ class _TopicCloudViewState extends State<TopicCloudView>
         cursor: SystemMouseCursors.click,
         onEnter: (_) => setState(() => _hoveredPlacementIndex = index),
         onExit: (_) => setState(() => _hoveredPlacementIndex = null),
-        child: Tooltip(
-          message: _fullInfoText(p.word),
-          preferBelow: false,
-          waitDuration: const Duration(milliseconds: 400),
-          decoration: BoxDecoration(
-            color: const Color(0xFF2D3748),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (isHovered)
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: true,
+                  child: AnimatedOpacity(
+                    opacity: isHovered ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 220),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.orangeAccent.withValues(alpha: 0.55),
+                            blurRadius: 36,
+                            spreadRadius: 6,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ],
-          ),
-          textStyle: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-            height: 1.4,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          margin: const EdgeInsets.all(8),
-          child: content,
+            content,
+          ],
         ),
       );
     }
@@ -293,6 +317,115 @@ class _TopicCloudViewState extends State<TopicCloudView>
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Tooltip kiểu "tour guide" hoành tráng cho từng đám mây từ vựng trên web.
+class _FancyWordGuideBubble extends StatelessWidget {
+  final String text;
+
+  const _FancyWordGuideBubble({required this.text, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 480),
+      builder: (context, value, child) {
+        // Chỉ fade-in đơn giản
+        final t = Curves.easeOut.transform(value).clamp(0.0, 1.0);
+
+        return Opacity(
+          opacity: t,
+          child: child,
+        );
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 260),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface.withValues(alpha: 0.98),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
+            border: Border.all(
+              color: theme.colorScheme.primary.withValues(alpha: 0.7),
+              width: 1.4,
+            ),
+          ),
+          child: DefaultTextStyle(
+            style: theme.textTheme.bodyMedium!.copyWith(
+              color: theme.colorScheme.onSurface,
+              height: 1.4,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lightbulb_outline,
+                      size: 18,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Ghi chú nhanh',
+                      style: theme.textTheme.labelLarge!.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(text),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Góc hướng dẫn: chỉ hiện tooltip khi có text (khi hover vào đám mây).
+class _GuideHint extends StatelessWidget {
+  final String? text;
+
+  const _GuideHint({this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasText = text != null && text!.isNotEmpty;
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: child,
+      ),
+      child: hasText
+          ? _FancyWordGuideBubble(
+              key: const ValueKey('guide-bubble'),
+              text: text!,
+            )
+          : const SizedBox.shrink(key: ValueKey('guide-empty')),
     );
   }
 }

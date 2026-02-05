@@ -209,8 +209,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
                         _selectedAnswer = index;
                         _showResult = true;
                         _isCorrect = correct;
-                        if (correct) _correctCount++;
-                        else _wrongCount++;
+                        if (correct) {
+                          _correctCount++;
+                        } else {
+                          _wrongCount++;
+                        }
                       });
                     }
                   : null,
@@ -276,8 +279,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
     setState(() {
       _showResult = true;
       _isCorrect = correct;
-      if (correct) _correctCount++;
-      else _wrongCount++;
+      if (correct) {
+        _correctCount++;
+      } else {
+        _wrongCount++;
+      }
     });
   }
 
@@ -323,8 +329,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
                                 _selectedAnswer = index;
                                 _showResult = true;
                                 _isCorrect = correct;
-                                if (correct) _correctCount++;
-                                else _wrongCount++;
+                                if (correct) {
+                                  _correctCount++;
+                                } else {
+                                  _wrongCount++;
+                                }
                               });
                             }
                           : null,
@@ -429,8 +438,11 @@ class _PracticeScreenState extends State<PracticeScreen> {
                                 _selectedAnswer = index;
                                 _showResult = true;
                                 _isCorrect = correct;
-                                if (correct) _correctCount++;
-                                else _wrongCount++;
+                                if (correct) {
+                                  _correctCount++;
+                                } else {
+                                  _wrongCount++;
+                                }
                               });
                             }
                           : null,
