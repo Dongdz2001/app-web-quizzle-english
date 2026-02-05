@@ -1,32 +1,16 @@
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-
 import '../models/vocabulary.dart';
 import 'cloud_size_config.dart';
 import 'cloud_widget.dart';
 
-/// Vị trí cuối cùng của mỗi từ (gần tâm → xa dần theo thứ tự xuất hiện).
-class _WordPlacement {
-  _WordPlacement({
-    required this.word,
-    required this.finalLeft,
-    required this.finalTop,
-    required this.staggerDelay,
-    required this.cloudSize,
-  });
-
-  final Vocabulary word;
-  final double finalLeft;
-  final double finalTop;
-  final double staggerDelay;
-  /// Kích thước đám mây cho từ này (chọn theo length word + meaning).
-  final Size cloudSize;
-}
-
-/// Hiển thị chủ đề dạng đám mây: topic ở giữa, các từ xuất hiện ngẫu nhiên
-/// từ gần tâm rồi dần ra xa (animation).
+/// Quản lý animation và vị trí từ vựng theo quỹ đạo bầu dục đồng tâm.
 class TopicCloudView extends StatefulWidget {
+  final String topicName;
+  final List<Vocabulary> words;
+  final Function(Vocabulary) onWordTap;
+  final Function(Vocabulary) onWordLongPress;
+
   const TopicCloudView({
     super.key,
     required this.topicName,
@@ -35,56 +19,52 @@ class TopicCloudView extends StatefulWidget {
     required this.onWordLongPress,
   });
 
-  final String topicName;
-  final List<Vocabulary> words;
-  final void Function(Vocabulary word) onWordTap;
-  final void Function(Vocabulary word) onWordLongPress;
-
   @override
   State<TopicCloudView> createState() => _TopicCloudViewState();
 }
 
 class _TopicCloudViewState extends State<TopicCloudView>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+  late AnimationController _animController;
+  Size _layoutSize = Size.zero;
   List<_WordPlacement> _placements = [];
-  Size? _layoutSize;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     );
+    _animController.forward();
   }
 
   @override
-  void didUpdateWidget(covariant TopicCloudView oldWidget) {
+  void didUpdateWidget(TopicCloudView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.words != widget.words || oldWidget.topicName != widget.topicName) {
-      _layoutSize = null;
-      _placements = [];
-      _controller
-        ..reset()
-        ..forward();
+    // Nếu số lượng từ hoặc tên topic thay đổi, reset animation
+    if (oldWidget.words.length != widget.words.length ||
+        oldWidget.topicName != widget.topicName) {
+      _animController.reset();
+      _animController.forward();
     }
   }
 
   List<_WordPlacement> _computePlacementsForSize(Size size) {
+    final count = widget.words.length;
+    final words = widget.words;
+    if (count == 0) return [];
+
     final w = size.width;
     final h = size.height;
     final centerX = w / 2;
     final centerY = h / 2;
-    // Kích thước tối đa cho 1 đám mây (để pickCloudSize clamp)
-    final layoutBounds = Size(w * 0.28, h * 0.18);
 
-    final words = List<Vocabulary>.from(widget.words);
-    final count = words.length;
-    if (count == 0) return [];
+    // Tính kích thước đám mây cho từng từ
+    final cloudSizes = words.map((word) {
+      return pickCloudSize(word, layoutBounds: size);
+    }).toList();
 
-    // Tính cloudSize cho từng từ theo maxCharsEnglish / maxCharsVietnamese
-    final cloudSizes = words.map((v) => pickCloudSize(v, layoutBounds: layoutBounds)).toList();
     final wordW = cloudSizes.map((s) => s.width).reduce(math.max);
     final wordH = cloudSizes.map((s) => s.height).reduce(math.max);
 
@@ -94,14 +74,14 @@ class _TopicCloudViewState extends State<TopicCloudView>
     var radius = math.min(w, h) * 0.18; // Bán kính cơ sở vòng đầu tiên
     final radiusStep = wordH + 14; // Bước tăng bán kính
     final spacing = 12.0;
-    // Hệ số bầu dục: ngang rộng hơn (1.2), dọc hẹp hơn (0.88)
-    const ovalScaleX = 1.2;
-    const ovalScaleY = 0.88;
+    // Hệ số bầu dục: mở rộng ngang mạnh (1.65), giảm chiều cao (0.75)
+    const ovalScaleX = 1.65;
+    const ovalScaleY = 0.75;
 
     while (wordIndex < count) {
       final radiusX = radius * ovalScaleX; // Bán trục ngang
       final radiusY = radius * ovalScaleY; // Bán trục dọc
-      // Chu vi ellipse gần đúng: π * (3*(rx+ry) - sqrt((3*rx+ry)*(rx+3*ry))) hoặc đơn giản π*(rx+ry)
+      // Chu vi ellipse gần đúng: π * (rx + ry)
       final perimeter = math.pi * (radiusX + radiusY);
       final cloudArc = wordW + spacing;
       final maxWordsOnCircle = math.max(1, (perimeter / cloudArc).floor());
@@ -118,8 +98,8 @@ class _TopicCloudViewState extends State<TopicCloudView>
 
         placements.add(_WordPlacement(
           word: words[wordIndex],
-          finalLeft: fx.clamp(10.0, w - wordW - 10),
-          finalTop: fy.clamp(10.0, h - wordH - 10),
+          finalLeft: fx,
+          finalTop: fy,
           staggerDelay: staggerDelay,
           cloudSize: cloudSizes[wordIndex],
         ));
@@ -127,7 +107,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
       }
 
       radius += radiusStep;
-      if (radius > math.min(w, h) * 0.5) break;
+      // Không giới hạn radius: đặt hết từ, user kéo (InteractiveViewer) để xem
     }
 
     return placements;
@@ -135,7 +115,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _animController.dispose();
     super.dispose();
   }
 
@@ -144,120 +124,23 @@ class _TopicCloudViewState extends State<TopicCloudView>
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
-
-        // Cập nhật layout khi kích thước thay đổi; tính ngay trong build để đám mây hiện ngay
-        if (_layoutSize != size) {
+        
+        // Recompute nếu size thay đổi hoặc số lượng từ thay đổi
+        if (_layoutSize != size || _placements.length != widget.words.length) {
           _layoutSize = size;
           _placements = _computePlacementsForSize(size);
-          _controller
-            ..reset()
-            ..forward();
         }
 
-        final w = size.width;
-        final h = size.height;
-        final centerX = w / 2;
-        final centerY = h / 2;
-        // Kích thước ô layout = max của tất cả cloudSize
-        final layoutW = _placements.isEmpty
-            ? 120.0
-            : _placements.map((p) => p.cloudSize.width).reduce(math.max);
-        final layoutH = _placements.isEmpty
-            ? 80.0
-            : _placements.map((p) => p.cloudSize.height).reduce(math.max);
-
         return AnimatedBuilder(
-          animation: _controller,
+          animation: _animController,
           builder: (context, _) {
             return Stack(
               clipBehavior: Clip.none,
               children: [
-                // Topic ở giữa: size fit chữ + padding 10, ảnh cloud_center.png
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Center(
-                    child: CloudWidget(
-                      size: null,
-                      imageAsset: kCloudCenterImageAsset,
-                      padding: const EdgeInsets.all(kCloudPaddingCenter),
-                      child: Text(
-                        widget.topicName,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 24,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                      ),
-                    ),
-                  ),
-                ),
-                // Các từ xuất hiện từ tâm → ra xa
-                ...List.generate(_placements.length, (i) {
-                  final p = _placements[i];
-                  final t = ((_controller.value - p.staggerDelay) / (1 - p.staggerDelay))
-                      .clamp(0.0, 1.0);
-                  final curveT = Curves.easeOutCubic.transform(t);
-
-                  final cellLeft = centerX - layoutW / 2 +
-                      (p.finalLeft - centerX + layoutW / 2) * curveT;
-                  final cellTop = centerY - layoutH / 2 +
-                      (p.finalTop - centerY + layoutH / 2) * curveT;
-                  // Center cloud trong ô (cloud có thể nhỏ hơn ô)
-                  final left = cellLeft + (layoutW - p.cloudSize.width) / 2;
-                  final top = cellTop + (layoutH - p.cloudSize.height) / 2;
-                  final scale = 0.3 + 0.7 * curveT;
-                  final opacity = curveT;
-
-                  return Positioned(
-                    left: left.clamp(0.0, w - p.cloudSize.width),
-                    top: top.clamp(0.0, h - p.cloudSize.height),
-                    child: Opacity(
-                      opacity: opacity,
-                      child: Transform.scale(
-                        scale: scale,
-                        alignment: Alignment.center,
-                        child: CloudWidget(
-                          size: p.cloudSize,
-                          onTap: () => widget.onWordTap(p.word),
-                          onLongPress: () => widget.onWordLongPress(p.word),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                p.word.word,
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 20,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                p.word.meaning,
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey[700],
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }),
+                // Vẽ các từ vựng
+                for (final p in _placements) _buildWordCloud(p),
+                // Tâm cụm (topic name)
+                _buildCenterTopic(),
               ],
             );
           },
@@ -265,4 +148,94 @@ class _TopicCloudViewState extends State<TopicCloudView>
       },
     );
   }
+
+  Widget _buildCenterTopic() {
+    return Positioned(
+      left: _layoutSize.width / 2,
+      top: _layoutSize.height / 2,
+      child: Transform.translate(
+        offset: const Offset(-0.5, -0.5),
+        child: FractionalTranslation(
+          translation: const Offset(-0.5, -0.5),
+          child: CloudWidget(
+            size: null, // Dynamic sizing
+            imageAsset: kCloudCenterImageAsset,
+            padding: const EdgeInsets.all(kCloudPaddingCenter),
+            child: Text(
+              widget.topicName,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWordCloud(_WordPlacement p) {
+    final elapsed = _animController.value;
+    final start = p.staggerDelay;
+    final end = start + 0.6;
+    final t = ((elapsed - start) / (end - start)).clamp(0.0, 1.0);
+    final curve = Curves.easeOutCubic.transform(t);
+
+    return Positioned(
+      left: p.finalLeft,
+      top: p.finalTop,
+      child: Opacity(
+        opacity: curve,
+        child: Transform.scale(
+          scale: 0.5 + 0.5 * curve,
+          child: CloudWidget(
+            size: p.cloudSize,
+            onTap: () => widget.onWordTap(p.word),
+            onLongPress: () => widget.onWordLongPress(p.word),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  p.word.word,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  p.word.meaning,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.grey[700],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WordPlacement {
+  final Vocabulary word;
+  final double finalLeft;
+  final double finalTop;
+  final double staggerDelay;
+  final Size cloudSize;
+
+  _WordPlacement({
+    required this.word,
+    required this.finalLeft,
+    required this.finalTop,
+    required this.staggerDelay,
+    required this.cloudSize,
+  });
 }

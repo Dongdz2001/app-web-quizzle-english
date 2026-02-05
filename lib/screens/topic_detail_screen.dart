@@ -96,28 +96,38 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
               ),
             ],
           ),
-          body: Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: kIsWeb ? 1200 : 900),
-              child: Column(
+          body: Column(
                 children: [
+                  // Mô tả và nút action: giữ maxWidth cho gọn
                   if ((topic.description?.isNotEmpty ?? false))
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.fromLTRB(
-                        kIsWeb ? 8 : 16,
-                        16,
-                        kIsWeb ? 8 : 16,
-                        8,
-                      ),
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        topic.description!,
-                        style: Theme.of(context).textTheme.bodyMedium,
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: kIsWeb ? 1200 : 900),
+                        child: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.fromLTRB(
+                            kIsWeb ? 8 : 16,
+                            16,
+                            kIsWeb ? 8 : 16,
+                            8,
+                          ),
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            topic.description!,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ),
                       ),
                     ),
-                  _buildActionButtons(context, topicId, topic.words),
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: kIsWeb ? 1200 : 900),
+                      child: _buildActionButtons(context, topicId, topic.words),
+                    ),
+                  ),
+                  // Vùng đám mây: không giới hạn maxWidth, full màn hình để InteractiveViewer tự do
                   Expanded(
                     child: topic.words.isEmpty
                         ? Center(
@@ -139,18 +149,41 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                               ],
                             ),
                           )
-                        : TopicCloudView(
-                            topicName: topic.name,
-                            words: topic.words,
-                            onWordTap: (word) => _showEditWordDialog(
-                                context, provider, topicId, word),
-                            onWordLongPress: (word) => _showWordContextMenu(
-                                context, provider, topicId, word),
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              final vw = constraints.maxWidth;
+                              final vh = constraints.maxHeight;
+                              final count = topic.words.length;
+                              // Canvas tăng theo số từ, không giới hạn: zoom + drag để xem hết
+                              double scale = 1.0;
+                              if (count > 8) {
+                                scale = 1.0 + (count - 8) * 0.06; // 40 từ ~2.9x, 60 từ ~4.1x
+                              }
+                              scale = scale.clamp(1.0, 10.0);
+                              final cw = vw * scale * 1.35; // mở rộng ngang hơn để không bị kẹt
+                              final ch = vh * scale;
+                              return InteractiveViewer(
+                                minScale: 0.3,
+                                maxScale: 4.0,
+                                boundaryMargin: const EdgeInsets.all(1000),
+                                clipBehavior: Clip.none,
+                                child: SizedBox(
+                                  width: cw,
+                                  height: ch,
+                                  child: TopicCloudView(
+                                    topicName: topic.name,
+                                    words: topic.words,
+                                    onWordTap: (word) => _showEditWordDialog(
+                                        context, provider, topicId, word),
+                                    onWordLongPress: (word) => _showWordContextMenu(
+                                        context, provider, topicId, word),
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                   ),
                 ],
-              ),
-            ),
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => _showAddWordDialog(context, provider, topicId),
