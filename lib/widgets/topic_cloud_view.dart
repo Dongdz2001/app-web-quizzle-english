@@ -1,13 +1,11 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../data/init_data_names.dart';
+import '../data/init_data_color_label.dart';
 import '../models/vocabulary.dart';
 import 'cloud_size_config.dart';
 import 'cloud_widget.dart';
-
-/// Tên người tạo hiển thị trên label ở góc đám mây.
-/// Đổi giá trị này để thay tên hiển thị.
-const String kCreatorDisplayName = 'Nguyễn Trần Bảo Linh';
 
 /// Các thông số vị trí/size cho label người tạo.
 /// Bạn chỉ cần chỉnh các hằng số này để đổi vị trí & kích thước
@@ -17,7 +15,10 @@ const double kCreatorLabelHeight = 18;         // chiều cao label (px)
 const double kCreatorLabelTopOffset = 4;       // label lệch theo trục Y so với đám mây
 const double kCreatorLabelRightOffset = 10;     // label lệch theo trục X so với đám mây
 const double kCreatorLabelTextRightPadding = 5; // chữ lùi vào trong label từ mép phải
-const double kCreatorLabelTextTopPadding = 2;    // chữ dịch xuống/dịch lên trong label
+const double kCreatorLabelTextTopPadding = 4;    // chữ dịch xuống/dịch lên trong label
+/// Kích thước đám mây tham chiếu để label zoom theo tỉ lệ.
+const double kCreatorLabelRefCloudWidth = 100;
+const double kCreatorLabelRefCloudHeight = 80;
 
 /// Quản lý animation và vị trí từ vựng theo quỹ đạo vòng tròn đồng tâm (cách đều, đối xứng tâm).
 class TopicCloudView extends StatefulWidget {
@@ -25,6 +26,8 @@ class TopicCloudView extends StatefulWidget {
   final List<Vocabulary> words;
   final Function(Vocabulary) onWordTap;
   final Function(Vocabulary) onWordLongPress;
+  /// Khi set: tooltip không vẽ trong view (dùng để vẽ bên ngoài, cố định, không zoom).
+  final void Function(String?)? onGuideTextChanged;
 
   const TopicCloudView({
     super.key,
@@ -32,6 +35,7 @@ class TopicCloudView extends StatefulWidget {
     required this.words,
     required this.onWordTap,
     required this.onWordLongPress,
+    this.onGuideTextChanged,
   });
 
   @override
@@ -158,7 +162,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
                   for (var i = 0; i < _placements.length; i++)
                     _buildWordCloud(_placements[i], index: i),
                   _buildCenterTopic(),
-                  if (kIsWeb)
+                  if (kIsWeb && widget.onGuideTextChanged == null)
                     Positioned.fill(
                       child: IgnorePointer(
                         ignoring: true,
@@ -167,7 +171,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
                           child: Padding(
                             padding:
                                 const EdgeInsets.only(top: 24, right: 24),
-                            child: _GuideHint(
+                            child: TopicCloudGuideHint(
                               text: _hoveredPlacementIndex != null
                                   ? _fullInfoText(
                                       _placements[_hoveredPlacementIndex!]
@@ -252,19 +256,27 @@ class _TopicCloudViewState extends State<TopicCloudView>
                 final scale = baseScale * (1.0 + value * (hoverScaleUp - 1.0));
                 return Transform.scale(scale: scale, child: child);
               },
-              child: _cloudContent(p),
+              child: _cloudContent(p, showLabel: isHovered),
             )
           : Transform.scale(
               scale: baseScale,
-              child: _cloudContent(p),
+              child: _cloudContent(p, showLabel: false),
             ),
     );
 
     if (kIsWeb) {
       content = MouseRegion(
         cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hoveredPlacementIndex = index),
-        onExit: (_) => setState(() => _hoveredPlacementIndex = null),
+        onEnter: (_) {
+          setState(() => _hoveredPlacementIndex = index);
+          widget.onGuideTextChanged?.call(
+            _fullInfoText(_placements[index].word),
+          );
+        },
+        onExit: (_) {
+          setState(() => _hoveredPlacementIndex = null);
+          widget.onGuideTextChanged?.call(null);
+        },
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -302,9 +314,17 @@ class _TopicCloudViewState extends State<TopicCloudView>
     );
   }
 
-  Widget _cloudContent(_WordPlacement p) {
+  Widget _cloudContent(_WordPlacement p, {bool showLabel = false}) {
+    // Demo: mỗi đám mây 1 tên, 1 màu label, 1 màu đám mây (ngẫu nhiên).
+    final seed = widget.topicName.hashCode ^ p.word.id.hashCode;
+    final rnd = math.Random(seed);
+    final demoName = initDataNames[rnd.nextInt(initDataNames.length)];
+    final demoColor = initDataColors[rnd.nextInt(initDataColors.length)];
+    final cloudColor = initDataColors[rnd.nextInt(initDataColors.length)];
+
     final cloud = CloudWidget(
       size: p.cloudSize,
+      tintColor: cloudColor,
       onTap: () => widget.onWordTap(p.word),
       onLongPress: () => widget.onWordLongPress(p.word),
       child: Column(
@@ -316,7 +336,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.black,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 2),
@@ -332,16 +352,21 @@ class _TopicCloudViewState extends State<TopicCloudView>
       ),
     );
 
-    // Gắn label nhỏ ở góc trên bên phải đám mây.
+    // Gắn label nhỏ ở góc trên bên phải đám mây; chỉ hiện khi hover (web).
     return Stack(
       clipBehavior: Clip.none,
       children: [
         cloud,
-        Positioned(
-          top: kCreatorLabelTopOffset,
-          right: kCreatorLabelRightOffset,
-          child: _CreatorLabel(name: kCreatorDisplayName),
-        ),
+        if (showLabel)
+          Positioned(
+            top: kCreatorLabelTopOffset,
+            right: kCreatorLabelRightOffset,
+            child: _CreatorLabel(
+              name: demoName,
+              labelColor: demoColor,
+              cloudSize: p.cloudSize,
+            ),
+          ),
       ],
     );
   }
@@ -431,10 +456,11 @@ class _FancyWordGuideBubble extends StatelessWidget {
 }
 
 /// Góc hướng dẫn: chỉ hiện tooltip khi có text (khi hover vào đám mây).
-class _GuideHint extends StatelessWidget {
+/// Public để màn hình có thể đặt cố định ngoài InteractiveViewer (không bị zoom).
+class TopicCloudGuideHint extends StatelessWidget {
   final String? text;
 
-  const _GuideHint({this.text});
+  const TopicCloudGuideHint({this.text, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -457,49 +483,78 @@ class _GuideHint extends StatelessWidget {
 }
 
 /// Label ruy băng nhỏ để hiển thị tên người tạo.
+/// Width tự động thu vào / dài ra theo nội dung chữ.
 class _CreatorLabel extends StatelessWidget {
   final String name;
+  final Color? labelColor;
+  final Size? cloudSize;
 
-  const _CreatorLabel({required this.name});
+  const _CreatorLabel({
+    required this.name,
+    this.labelColor,
+    this.cloudSize,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final scaleW = cloudSize != null
+        ? (cloudSize!.width / kCreatorLabelRefCloudWidth).clamp(0.5, 2.0)
+        : 1.0;
+    final scaleH = cloudSize != null
+        ? (cloudSize!.height / kCreatorLabelRefCloudHeight).clamp(0.5, 2.0)
+        : 1.0;
+    final h = kCreatorLabelHeight * scaleH;
+    final textColor = labelColor != null
+        ? (labelColor!.computeLuminance() > 0.5 ? Colors.black87 : Colors.white)
+        : const Color.fromARGB(255, 98, 97, 97);
+    final baseFontSize = (9 * (scaleW + scaleH) / 2).clamp(7.0, 12.0);
+    final wordCount = name.trim().split(RegExp(r'\s+')).length;
+    final fontSize = wordCount >= 5 ? (baseFontSize - 4).clamp(5.0, 12.0) : baseFontSize;
+    final textStyle = TextStyle(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w500,
+      color: textColor,
+    );
+
+    Widget imageChild = Image.asset(
+      'assets/label.png',
+      fit: BoxFit.fill,
+    );
+    if (labelColor != null) {
+      imageChild = ColorFiltered(
+        colorFilter: ColorFilter.mode(
+          labelColor!,
+          BlendMode.modulate,
+        ),
+        child: imageChild,
+      );
+    }
+
     return SizedBox(
-      width: kCreatorLabelWidth,
-      height: kCreatorLabelHeight,
-      child: Stack(
-        alignment: Alignment.centerRight,
-        children: [
-          Image.asset(
-            'assets/label.png',
-            width: kCreatorLabelWidth,
-            height: kCreatorLabelHeight,
-            // Stretch ảnh theo đúng kích thước label, để bạn
-            // có thể tự tăng/giảm kCreatorLabelWidth/Height
-            // mà nền ruy băng vẫn fill toàn bộ vùng này.
-            fit: BoxFit.fill,
-          ),
-          Padding(
-            padding: const EdgeInsets.only(
-              right: kCreatorLabelTextRightPadding,
-              top: kCreatorLabelTextTopPadding,
-            ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerRight,
-              child: Text(
-                name,
-                softWrap: false,
-                style: const TextStyle(
-                  fontSize: 8, // cỡ chữ gốc, sẽ tự thu nhỏ nếu tràn
-                  fontWeight: FontWeight.w500,
-                  color: Color.fromARGB(255, 98, 97, 97),
+      height: h,
+      child: IntrinsicWidth(
+        child: Stack(
+            alignment: Alignment.centerRight,
+            children: [
+              Positioned.fill(
+                child: imageChild,
+              ),
+              Padding(
+                padding: EdgeInsets.only(
+                  left: 6 * scaleW + 10,
+                  right: kCreatorLabelTextRightPadding * scaleW + 2,
+                  top: kCreatorLabelTextTopPadding * scaleH,
+                ),
+                child: Text(
+                  name,
+                  softWrap: false,
+                  overflow: TextOverflow.clip,
+                  style: textStyle,
                 ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
     );
   }
 }

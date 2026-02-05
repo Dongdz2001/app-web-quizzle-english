@@ -22,6 +22,7 @@ class CloudWidget extends StatelessWidget {
     this.size = const Size(120, 80),
     this.imageAsset,
     this.padding,
+    this.tintColor,
     this.onTap,
     this.onLongPress,
   });
@@ -33,6 +34,8 @@ class CloudWidget extends StatelessWidget {
   final String? imageAsset;
   /// Padding bên trong đám mây; null = dùng [kCloudPaddingWords].
   final EdgeInsets? padding;
+  /// Màu nhuộm đám mây; null = giữ ảnh gốc.
+  final Color? tintColor;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
@@ -40,6 +43,24 @@ class CloudWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final pad = padding ?? const EdgeInsets.all(kCloudPaddingWords);
     final asset = imageAsset ?? kCloudImageAsset;
+
+    Widget imageWidget(String path) {
+      Widget img = Image.asset(
+        path,
+        fit: size == null ? BoxFit.fill : BoxFit.contain,
+        errorBuilder: (_, __, ___) => Container(
+          color: Colors.white,
+          child: const Center(child: Icon(Icons.cloud)),
+        ),
+      );
+      if (tintColor != null) {
+        img = ColorFiltered(
+          colorFilter: ColorFilter.mode(tintColor!, BlendMode.modulate),
+          child: img,
+        );
+      }
+      return img;
+    }
 
     Widget cloud;
     if (size == null) {
@@ -51,14 +72,7 @@ class CloudWidget extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               Positioned.fill(
-                child: Image.asset(
-                  asset,
-                  fit: BoxFit.fill,
-                  errorBuilder: (_, __, ___) => Container(
-                    color: Colors.white,
-                    child: const Center(child: Icon(Icons.cloud)),
-                  ),
-                ),
+                child: imageWidget(asset),
               ),
               Padding(padding: pad, child: child),
             ],
@@ -75,14 +89,7 @@ class CloudWidget extends StatelessWidget {
           alignment: Alignment.center,
           fit: StackFit.expand,
           children: [
-            Image.asset(
-              asset,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
-                color: Colors.white,
-                child: const Center(child: Icon(Icons.cloud)),
-              ),
-            ),
+            imageWidget(asset),
             Padding(
               padding: pad,
               child: Center(

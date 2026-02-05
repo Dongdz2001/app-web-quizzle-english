@@ -22,6 +22,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   /// Trên mobile landscape: true = hiện AppBar, false = ẩn (vuốt xuống để hiện).
   bool _appBarVisible = false;
   Timer? _hideAppBarTimer;
+  /// Tooltip nổi cố định góc trên phải (web), không bị zoom.
+  String? _guideText;
 
   @override
   void initState() {
@@ -135,23 +137,39 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                               scale = scale.clamp(1.0, 10.0);
                               final cw = vw * scale * 1.35; // mở rộng ngang hơn để không bị kẹt
                               final ch = vh * scale;
-                              return InteractiveViewer(
-                                minScale: 0.3,
-                                maxScale: 4.0,
-                                boundaryMargin: const EdgeInsets.all(1000),
+                              return Stack(
                                 clipBehavior: Clip.none,
-                                child: SizedBox(
-                                  width: cw,
-                                  height: ch,
-                                  child: TopicCloudView(
-                                    topicName: topic.name,
-                                    words: topic.words,
-                                    onWordTap: (word) => _showEditWordDialog(
-                                        context, provider, topicId, word),
-                                    onWordLongPress: (word) => _showWordContextMenu(
-                                        context, provider, topicId, word),
+                                children: [
+                                  InteractiveViewer(
+                                    minScale: 0.3,
+                                    maxScale: 4.0,
+                                    boundaryMargin: const EdgeInsets.all(1000),
+                                    clipBehavior: Clip.none,
+                                    child: SizedBox(
+                                      width: cw,
+                                      height: ch,
+                                      child: TopicCloudView(
+                                        topicName: topic.name,
+                                        words: topic.words,
+                                        onWordTap: (word) => _showEditWordDialog(
+                                            context, provider, topicId, word),
+                                        onWordLongPress: (word) => _showWordContextMenu(
+                                            context, provider, topicId, word),
+                                        onGuideTextChanged: kIsWeb
+                                            ? (text) => setState(() => _guideText = text)
+                                            : null,
+                                      ),
+                                    ),
                                   ),
-                                ),
+                                  if (kIsWeb)
+                                    Positioned(
+                                      top: 24,
+                                      right: 24,
+                                      child: IgnorePointer(
+                                        child: TopicCloudGuideHint(text: _guideText),
+                                      ),
+                                    ),
+                                ],
                               );
                             },
                           ),
