@@ -36,6 +36,9 @@ dependencies:
   antd_flutter_mobile: ^5.0.8-alpha.5
   shared_preferences: ^2.2.2
   uuid: ^4.2.2
+  flutter_tts: ^4.2.5
+  http: ^1.2.2
+  audioplayers: ^6.0.0
 
 dev_dependencies:
   flutter_test:

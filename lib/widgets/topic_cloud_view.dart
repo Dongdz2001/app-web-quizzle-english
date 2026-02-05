@@ -25,6 +25,7 @@ class TopicCloudView extends StatefulWidget {
   final String topicName;
   final List<Vocabulary> words;
   final Function(Vocabulary) onWordTap;
+  final Function(Vocabulary)? onWordDoubleTap;
   final Function(Vocabulary) onWordLongPress;
   /// Khi set: tooltip không vẽ trong view (dùng để vẽ bên ngoài). [position] = toạ độ global chuột (để đặt tooltip dưới con trỏ).
   final void Function(String? text, Offset? position)? onGuideTextChanged;
@@ -34,6 +35,7 @@ class TopicCloudView extends StatefulWidget {
     required this.topicName,
     required this.words,
     required this.onWordTap,
+    this.onWordDoubleTap,
     required this.onWordLongPress,
     this.onGuideTextChanged,
   });
@@ -333,6 +335,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
       size: p.cloudSize,
       tintColor: cloudColor,
       onTap: () => widget.onWordTap(p.word),
+      onDoubleTap: widget.onWordDoubleTap != null ? () => widget.onWordDoubleTap!(p.word) : null,
       onLongPress: () => widget.onWordLongPress(p.word),
       child: Column(
         mainAxisSize: MainAxisSize.min,

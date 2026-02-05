@@ -1,14 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderBox, RenderStack;
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/vocabulary.dart';
 import '../providers/vocab_provider.dart';
+import '../services/text2audio_service.dart';
 import '../widgets/topic_cloud_view.dart';
 import 'add_edit_word_dialog.dart';
 
@@ -27,9 +31,13 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   String? _guideText;
   Offset? _guidePosition;
 
+  final FlutterTts _flutterTts = FlutterTts();
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
   @override
   void initState() {
     super.initState();
+    _initTts();
     if (!kIsWeb) {
       SystemChrome.setPreferredOrientations([
         DeviceOrientation.landscapeLeft,
@@ -41,10 +49,48 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   @override
   void dispose() {
     _hideAppBarTimer?.cancel();
+    _flutterTts.stop();
+    _audioPlayer.dispose();
     if (!kIsWeb) {
       SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     }
     super.dispose();
+  }
+
+  Future<void> _initTts() async {
+    await _flutterTts.setLanguage('en-US');
+    await _flutterTts.setSpeechRate(0.45);
+  }
+
+  /// Phát audio từ URL hoặc bytes (text2audio.cc).
+  Future<void> _playAudio(Text2AudioResult? result) async {
+    if (result == null || !mounted) return;
+    if (result.audioUrl != null && result.audioUrl!.isNotEmpty) {
+      await _audioPlayer.play(UrlSource(result.audioUrl!));
+      return;
+    }
+    if (result.audioBytes != null && result.audioBytes!.isNotEmpty) {
+      final b64 = base64Encode(result.audioBytes!);
+      await _audioPlayer.play(UrlSource('data:audio/mpeg;base64,$b64'));
+    }
+  }
+
+  /// Click đơn: đọc từ (và nghĩa) bằng API text2audio.cc, fallback FlutterTts.
+  Future<void> _speakWord(Vocabulary word) async {
+    await _audioPlayer.stop();
+    await _flutterTts.stop();
+
+    final wordResult = await fetchAudio(
+      language: 'en-US',
+      paragraphs: word.word,
+      splitParagraph: true,
+    );
+    if (wordResult != null) {
+      await _playAudio(wordResult);
+      return;
+    }
+
+    await _flutterTts.speak(word.word);
   }
 
   void _showAppBarTemporarily() {
@@ -153,7 +199,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                                       child: TopicCloudView(
                                         topicName: topic.name,
                                         words: topic.words,
-                                        onWordTap: (word) => _showEditWordDialog(
+                                        onWordTap: (word) => _speakWord(word),
+                                        onWordDoubleTap: (word) => _showEditWordDialog(
                                             context, provider, topicId, word),
                                         onWordLongPress: (word) => _showWordContextMenu(
                                             context, provider, topicId, word),

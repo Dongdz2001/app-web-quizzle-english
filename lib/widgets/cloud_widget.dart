@@ -24,6 +24,7 @@ class CloudWidget extends StatelessWidget {
     this.padding,
     this.tintColor,
     this.onTap,
+    this.onDoubleTap,
     this.onLongPress,
   });
 
@@ -37,6 +38,7 @@ class CloudWidget extends StatelessWidget {
   /// Màu nhuộm đám mây; null = giữ ảnh gốc.
   final Color? tintColor;
   final VoidCallback? onTap;
+  final VoidCallback? onDoubleTap;
   final VoidCallback? onLongPress;
 
   @override
@@ -111,9 +113,10 @@ class CloudWidget extends StatelessWidget {
       );
     }
 
-    if (onTap != null || onLongPress != null) {
+    if (onTap != null || onDoubleTap != null || onLongPress != null) {
       cloud = GestureDetector(
         onTap: onTap,
+        onDoubleTap: onDoubleTap,
         onLongPress: onLongPress,
         child: cloud,
       );
