@@ -1,6 +1,8 @@
+import 'package:antd_flutter_mobile/index.dart';
 import 'package:flutter/material.dart';
 
 import '../models/vocabulary.dart';
+import '../styles/app_buttons.dart';
 
 class AddEditWordDialog extends StatefulWidget {
   final Vocabulary word;
@@ -54,105 +56,70 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final screenHeight = MediaQuery.sizeOf(context).height;
+    final screenSize = MediaQuery.sizeOf(context);
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
     final isMobile = screenWidth < 600;
     final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
     final spacing = isMobile ? 8.0 : 12.0;
 
-    if (isMobile) {
-      // Mobile xoay ngang: thêm height (95%, minHeight 360) để dialog đủ cao
-      final maxH = isLandscape ? screenHeight * 0.95 : screenHeight * 0.85;
-      final minH = isLandscape ? 360.0 : 0.0;
-      return Dialog(
-        insetPadding: EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: isLandscape ? 12 : 24,
+    // Kích thước card theo kiểu web React/Ant Design
+    final maxCardWidth = isMobile ? screenWidth - 32 : 520.0;
+    final maxCardHeight = isMobile
+        ? (isLandscape ? screenHeight * 0.95 : screenHeight * 0.85)
+        : screenHeight * 0.8;
+
+    return Dialog(
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 16 : 40,
+        vertical: isMobile ? (isLandscape ? 12 : 24) : 32,
+      ),
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: maxCardWidth,
+          maxHeight: maxCardHeight,
+          minHeight: isMobile && isLandscape ? 360 : 0,
         ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: maxH,
-            minHeight: minH,
+        child: AntdCard(
+          title: Text(
+            widget.word.word.isEmpty ? 'Thêm Từ Vựng' : 'Sửa Từ Vựng',
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          footer: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Text(
-                  widget.word.word.isEmpty ? 'Thêm Từ Vựng' : 'Sửa Từ Vựng',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
+              OutlinedButton(
+                style: AppButtons.cancle(context),
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Hủy'),
               ),
-              Flexible(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: _buildFormFields(context, spacing, true, _showExtraFields),
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).dialogBackgroundColor,
-                  border: Border(
-                    top: BorderSide(
-                      color: Theme.of(context).dividerColor.withValues(alpha: 0.3),
-                      width: 1,
-                    ),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Hủy', style: TextStyle(fontSize: 14)),
-                    ),
-                    const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: _onSave,
-                      child: const Text('Lưu', style: TextStyle(fontSize: 14)),
-                    ),
-                  ],
-                ),
+              const SizedBox(width: 12),
+              FilledButton(
+                style: AppButtons.standas(context),
+                onPressed: _onSave,
+                child: const Text('Lưu'),
               ),
             ],
           ),
-        ),
-      );
-    }
-
-    return AlertDialog(
-      insetPadding: EdgeInsets.symmetric(horizontal: 40, vertical: 24),
-      contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-      title: Text(
-        widget.word.word.isEmpty ? 'Thêm Từ Vựng' : 'Sửa Từ Vựng',
-        style: const TextStyle(fontSize: 20),
-      ),
-      content: SingleChildScrollView(
-        child: SizedBox(
-          width: 450,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: _buildFormFields(context, spacing, false),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: isMobile ? 4 : 8,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: _buildFormFields(
+                  context,
+                  spacing,
+                  isMobile,
+                  _showExtraFields,
+                ),
+              ),
+            ),
           ),
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy', style: TextStyle(fontSize: 15)),
-        ),
-        ElevatedButton(
-          onPressed: _onSave,
-          child: const Text('Lưu', style: TextStyle(fontSize: 15)),
-        ),
-      ],
     );
   }
 
@@ -162,22 +129,54 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
     bool isMobile, [
     bool showExtra = true,
   ]) {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+
+    InputDecoration _fieldDecoration({
+      required String label,
+      String? hint,
+    }) {
+      return InputDecoration(
+        labelText: label,
+        hintText: hint,
+        isDense: isMobile,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
+          borderSide: BorderSide(
+            color: theme.dividerColor.withValues(alpha: 0.5),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
+          borderSide: BorderSide(
+            color: primary,
+            width: 1.6,
+          ),
+        ),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: isMobile ? 10 : 12,
+        ),
+      );
+    }
+
     final fields = <Widget>[
       TextField(
         controller: _wordController,
-        decoration: InputDecoration(
-          labelText: 'Word (Từ tiếng Anh) *',
-          hintText: isMobile ? 'VD: family' : 'VD: family, career...',
-          isDense: isMobile,
+        decoration: _fieldDecoration(
+          label: 'Word (Từ tiếng Anh) *',
+          hint: isMobile ? 'VD: mother' : 'VD: mother, career...',
         ),
       ),
       SizedBox(height: spacing),
       TextField(
         controller: _meaningController,
-        decoration: InputDecoration(
-          labelText: 'Meaning (Nghĩa tiếng Việt) *',
-          hintText: isMobile ? 'VD: gia đình' : 'VD: gia đình, sự nghiệp...',
-          isDense: isMobile,
+        decoration: _fieldDecoration(
+          label: 'Meaning (Nghĩa tiếng Việt) *',
+          hint: isMobile ? 'VD: mẹ' : 'VD: mẹ, gia đình, sự nghiệp...',
         ),
       ),
     ];
@@ -202,7 +201,7 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
                 _wordFormController.text.isNotEmpty
             ? _wordFormController.text
             : null,
-        decoration: InputDecoration(labelText: 'Word form', isDense: isMobile),
+        decoration: _fieldDecoration(label: 'Word form'),
         items: _wordFormOptions
             .where((e) => e.isNotEmpty)
             .map((e) => DropdownMenuItem(value: e, child: Text(e)))
@@ -212,29 +211,26 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
       SizedBox(height: spacing),
       TextField(
         controller: _englishDefController,
-        decoration: InputDecoration(
-          labelText: 'English definition (Tùy chọn)',
-          hintText: isMobile ? '' : 'Giải nghĩa bằng tiếng Anh...',
-          isDense: isMobile,
+        decoration: _fieldDecoration(
+          label: 'English definition (Tùy chọn)',
+          hint: isMobile ? '' : 'Giải nghĩa bằng tiếng Anh...',
         ),
-        maxLines: isMobile ? 1 : 2,
+        maxLines: isMobile ? 2 : 3,
       ),
       SizedBox(height: spacing),
       TextField(
         controller: _synonymController,
-        decoration: InputDecoration(
-          labelText: isMobile ? 'Synonym' : 'Synonym - Từ đồng nghĩa (Tùy chọn)',
-          hintText: isMobile ? '' : 'VD: household, profession...',
-          isDense: isMobile,
+        decoration: _fieldDecoration(
+          label: isMobile ? 'Synonym' : 'Synonym - Từ đồng nghĩa (Tùy chọn)',
+          hint: isMobile ? '' : 'VD: mom, household, profession...',
         ),
       ),
       SizedBox(height: spacing),
       TextField(
         controller: _antonymController,
-        decoration: InputDecoration(
-          labelText: isMobile ? 'Antonym' : 'Antonym - Từ trái nghĩa (Tùy chọn)',
-          hintText: isMobile ? '' : 'VD: children, boss...',
-          isDense: isMobile,
+        decoration: _fieldDecoration(
+          label: isMobile ? 'Antonym' : 'Antonym - Từ trái nghĩa (Tùy chọn)',
+          hint: isMobile ? '' : 'VD: father, children, boss...',
         ),
       ),
     ]);

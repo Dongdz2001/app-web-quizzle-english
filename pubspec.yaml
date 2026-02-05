@@ -33,6 +33,7 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   provider: ^6.1.2
+  antd_flutter_mobile: ^5.0.8-alpha.5
   shared_preferences: ^2.2.2
   uuid: ^4.2.2
 
