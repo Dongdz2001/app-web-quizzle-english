@@ -29,8 +29,15 @@ npm i -g vercel
 # Build Flutter web
 flutter build web --release
 
+# Tạo prebuilt output (Vercel Build Output API)
+mkdir -p .vercel/output/static
+cp -r build/web/* .vercel/output/static/
+cp vercel.output.config.json .vercel/output/config.json
+
 # Deploy
-vercel deploy build/web --prebuilt --prod
+vercel deploy --prebuilt --prod --yes
 ```
+
+**Lưu ý:** Phải dùng `vercel.output.config.json` (có `"handle":"filesystem"`) để Vercel phục vụ file JS/assets trước, chỉ fallback về `index.html` khi không có file. Thiếu bước này sẽ bị màn hình trắng.
 
 Lần đầu chạy sẽ yêu cầu đăng nhập và cấu hình project.

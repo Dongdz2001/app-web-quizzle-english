@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderBox, RenderStack;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -22,8 +23,9 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   /// Trên mobile landscape: true = hiện AppBar, false = ẩn (vuốt xuống để hiện).
   bool _appBarVisible = false;
   Timer? _hideAppBarTimer;
-  /// Tooltip nổi cố định góc trên phải (web), không bị zoom.
+  /// Tooltip nổi ngay dưới con trỏ (web), không bị zoom.
   String? _guideText;
+  Offset? _guidePosition;
 
   @override
   void initState() {
@@ -156,17 +158,38 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                                         onWordLongPress: (word) => _showWordContextMenu(
                                             context, provider, topicId, word),
                                         onGuideTextChanged: kIsWeb
-                                            ? (text) => setState(() => _guideText = text)
+                                            ? (text, position) => setState(() {
+                                                _guideText = text;
+                                                _guidePosition = position;
+                                              })
                                             : null,
                                       ),
                                     ),
                                   ),
                                   if (kIsWeb)
-                                    Positioned(
-                                      top: 24,
-                                      right: 24,
+                                    Positioned.fill(
                                       child: IgnorePointer(
-                                        child: TopicCloudGuideHint(text: _guideText),
+                                        child: Builder(
+                                          builder: (context) {
+                                            if (_guideText == null) return const SizedBox.shrink();
+                                            final stackBox = context.findAncestorRenderObjectOfType<RenderStack>() as RenderBox?;
+                                            final localPos = stackBox != null && _guidePosition != null
+                                                ? stackBox.globalToLocal(_guidePosition!)
+                                                : null;
+                                            if (localPos == null) return const SizedBox.shrink();
+                                            const offsetBelowCursor = 16.0;
+                                            return Stack(
+                                              clipBehavior: Clip.none,
+                                              children: [
+                                                Positioned(
+                                                  left: localPos.dx,
+                                                  top: localPos.dy + offsetBelowCursor,
+                                                  child: TopicCloudGuideHint(text: _guideText),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        ),
                                       ),
                                     ),
                                 ],
