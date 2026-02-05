@@ -142,4 +142,10 @@ class VocabProvider extends ChangeNotifier {
     await _storage.saveProgress(_progress);
     notifyListeners();
   }
+
+  /// Reset dữ liệu, xóa cache và seed lại demo (40 từ Gia đình, v.v.).
+  Future<void> resetData() async {
+    await _storage.clearAllData();
+    await loadData();
+  }
 }

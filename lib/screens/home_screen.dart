@@ -15,9 +15,45 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Ghi Nhớ Từ Vựng'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.analytics),
-            onPressed: () => Navigator.pushNamed(context, '/progress'),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) async {
+              if (value == 'progress') {
+                Navigator.pushNamed(context, '/progress');
+              } else if (value == 'reset') {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Reset dữ liệu?'),
+                    content: const Text(
+                      'Xóa toàn bộ dữ liệu và load lại demo (40 từ Gia đình, v.v.). Tiến trình học sẽ mất.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Hủy'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text('Reset', style: TextStyle(color: Colors.red[700])),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true && context.mounted) {
+                  await context.read<VocabProvider>().resetData();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Đã reset dữ liệu')),
+                    );
+                  }
+                }
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'progress', child: Row(children: [Icon(Icons.analytics), SizedBox(width: 8), Text('Tiến trình')])),
+              const PopupMenuItem(value: 'reset', child: Row(children: [Icon(Icons.refresh), SizedBox(width: 8), Text('Reset dữ liệu demo')])),
+            ],
           ),
         ],
       ),

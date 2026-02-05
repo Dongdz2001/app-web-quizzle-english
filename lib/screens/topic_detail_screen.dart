@@ -99,13 +99,18 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
           body: Align(
             alignment: Alignment.topCenter,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
+              constraints: BoxConstraints(maxWidth: kIsWeb ? 1200 : 900),
               child: Column(
                 children: [
                   if ((topic.description?.isNotEmpty ?? false))
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      padding: EdgeInsets.fromLTRB(
+                        kIsWeb ? 8 : 16,
+                        16,
+                        kIsWeb ? 8 : 16,
+                        8,
+                      ),
                       alignment: Alignment.centerLeft,
                       child: Text(
                         topic.description!,
@@ -158,9 +163,10 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
 
   Widget _buildActionButtons(BuildContext context, String topicId, List<Vocabulary> words) {
     if (words.isEmpty) return const SizedBox();
+    final padH = kIsWeb ? 8.0 : 16.0;
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(horizontal: padH, vertical: 16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(128),
       ),
