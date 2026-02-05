@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemChrome, DeviceOrientation;
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
@@ -152,10 +154,16 @@ class HomeScreen extends StatelessWidget {
                       trailing: PopupMenuButton<String>(
                         onSelected: (value) async {
                           if (value == 'edit') {
+                            if (!kIsWeb) {
+                              await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+                            }
                             final result = await showDialog<Topic>(
                               context: context,
                               builder: (_) => AddEditTopicDialog(topic: topic),
                             );
+                            if (!kIsWeb) {
+                              SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+                            }
                             if (result != null) {
                               provider.updateTopic(result);
                             }
@@ -225,6 +233,9 @@ class HomeScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
+          if (!kIsWeb) {
+            await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+          }
           final result = await showDialog<Topic>(
             context: context,
             builder: (_) => AddEditTopicDialog(
@@ -235,6 +246,9 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           );
+          if (!kIsWeb) {
+            SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+          }
           if (result != null && result.name.isNotEmpty) {
             context.read<VocabProvider>().addTopic(result);
           }

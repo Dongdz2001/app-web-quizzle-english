@@ -206,6 +206,9 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   }
 
   Future<void> _showAddWordDialog(BuildContext context, VocabProvider provider, String topicId) async {
+    if (!kIsWeb) {
+      await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    }
     final result = await showDialog<Vocabulary>(
       context: context,
       builder: (_) => AddEditWordDialog(
@@ -216,6 +219,12 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
         ),
       ),
     );
+    if (!kIsWeb) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     if (result != null && result.word.isNotEmpty && result.meaning.isNotEmpty) {
       final added = await provider.addWord(topicId, result);
       if (!added && context.mounted) {
@@ -266,10 +275,19 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     String topicId,
     Vocabulary word,
   ) async {
+    if (!kIsWeb) {
+      await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    }
     final result = await showDialog<Vocabulary>(
       context: context,
       builder: (_) => AddEditWordDialog(word: word),
     );
+    if (!kIsWeb) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+    }
     if (result != null) {
       provider.updateWord(topicId, result);
     }
