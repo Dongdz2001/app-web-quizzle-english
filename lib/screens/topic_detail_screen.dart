@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderBox, RenderStack;
@@ -12,7 +10,8 @@ import 'package:uuid/uuid.dart';
 
 import '../models/vocabulary.dart';
 import '../providers/vocab_provider.dart';
-import '../services/text2audio_service.dart';
+import '../utils/web_speech_stub.dart'
+    if (dart.library.html) '../utils/web_speech.dart' as web_speech;
 import '../widgets/topic_cloud_view.dart';
 import 'add_edit_word_dialog.dart';
 
@@ -32,7 +31,6 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   Offset? _guidePosition;
 
   final FlutterTts _flutterTts = FlutterTts();
-  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -49,8 +47,9 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   @override
   void dispose() {
     _hideAppBarTimer?.cancel();
-    _flutterTts.stop();
-    _audioPlayer.dispose();
+    try {
+      _flutterTts.stop();
+    } catch (_) {}
     if (!kIsWeb) {
       SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     }
@@ -58,39 +57,30 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   }
 
   Future<void> _initTts() async {
-    await _flutterTts.setLanguage('en-US');
-    await _flutterTts.setSpeechRate(0.45);
-  }
-
-  /// Phát audio từ URL hoặc bytes (text2audio.cc).
-  Future<void> _playAudio(Text2AudioResult? result) async {
-    if (result == null || !mounted) return;
-    if (result.audioUrl != null && result.audioUrl!.isNotEmpty) {
-      await _audioPlayer.play(UrlSource(result.audioUrl!));
-      return;
-    }
-    if (result.audioBytes != null && result.audioBytes!.isNotEmpty) {
-      final b64 = base64Encode(result.audioBytes!);
-      await _audioPlayer.play(UrlSource('data:audio/mpeg;base64,$b64'));
+    try {
+      await _flutterTts.setLanguage('en-US');
+      await _flutterTts.setSpeechRate(0.45);
+    } catch (_) {
+      // Trên web/một số thiết bị có thể không hỗ trợ đầy đủ
     }
   }
 
-  /// Click đơn: đọc từ (và nghĩa) bằng API text2audio.cc, fallback FlutterTts.
+  /// Click đơn: web dùng Web Speech API, còn lại dùng FlutterTts.
   Future<void> _speakWord(Vocabulary word) async {
-    await _audioPlayer.stop();
-    await _flutterTts.stop();
+    try {
+      await _flutterTts.stop();
+    } catch (_) {}
 
-    final wordResult = await fetchAudio(
-      language: 'en-US',
-      paragraphs: word.word,
-      splitParagraph: true,
-    );
-    if (wordResult != null) {
-      await _playAudio(wordResult);
-      return;
-    }
+    try {
+      if (kIsWeb) {
+        final ok = await web_speech.speakText(word.word, lang: 'en-US');
+        if (ok) return;
+      }
+    } catch (_) {}
 
-    await _flutterTts.speak(word.word);
+    try {
+      await _flutterTts.speak(word.word);
+    } catch (_) {}
   }
 
   void _showAppBarTemporarily() {
@@ -199,7 +189,9 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                                       child: TopicCloudView(
                                         topicName: topic.name,
                                         words: topic.words,
-                                        onWordTap: (word) => _speakWord(word),
+                                        onWordTap: (word) {
+                                          _speakWord(word).catchError((_) {});
+                                        },
                                         onWordDoubleTap: (word) => _showEditWordDialog(
                                             context, provider, topicId, word),
                                         onWordLongPress: (word) => _showWordContextMenu(
@@ -218,23 +210,27 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                                       child: IgnorePointer(
                                         child: Builder(
                                           builder: (context) {
-                                            if (_guideText == null) return const SizedBox.shrink();
-                                            final stackBox = context.findAncestorRenderObjectOfType<RenderStack>() as RenderBox?;
-                                            final localPos = stackBox != null && _guidePosition != null
-                                                ? stackBox.globalToLocal(_guidePosition!)
-                                                : null;
-                                            if (localPos == null) return const SizedBox.shrink();
-                                            const offsetBelowCursor = 16.0;
-                                            return Stack(
-                                              clipBehavior: Clip.none,
-                                              children: [
-                                                Positioned(
-                                                  left: localPos.dx,
-                                                  top: localPos.dy + offsetBelowCursor,
-                                                  child: TopicCloudGuideHint(text: _guideText),
-                                                ),
-                                              ],
-                                            );
+                                            try {
+                                              if (_guideText == null) return const SizedBox.shrink();
+                                              final stackBox = context.findAncestorRenderObjectOfType<RenderStack>() as RenderBox?;
+                                              final localPos = stackBox != null && _guidePosition != null
+                                                  ? stackBox.globalToLocal(_guidePosition!)
+                                                  : null;
+                                              if (localPos == null) return const SizedBox.shrink();
+                                              const offsetBelowCursor = 16.0;
+                                              return Stack(
+                                                clipBehavior: Clip.none,
+                                                children: [
+                                                  Positioned(
+                                                    left: localPos.dx,
+                                                    top: localPos.dy + offsetBelowCursor,
+                                                    child: TopicCloudGuideHint(text: _guideText),
+                                                  ),
+                                                ],
+                                              );
+                                            } catch (_) {
+                                              return const SizedBox.shrink();
+                                            }
                                           },
                                         ),
                                       ),

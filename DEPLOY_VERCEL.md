@@ -22,6 +22,8 @@
 
 ## Cách 2: Deploy thủ công (CLI)
 
+TTS trên web dùng **Web Speech API** (trình duyệt), không cần API server — deploy chỉ cần static:
+
 ```bash
 # Cài Vercel CLI (nếu chưa có)
 npm i -g vercel
@@ -29,15 +31,22 @@ npm i -g vercel
 # Build Flutter web
 flutter build web --release
 
-# Tạo prebuilt output (Vercel Build Output API)
+# Deploy
+vercel deploy --prod --yes
+```
+
+`vercel.json` đã cấu hình `outputDirectory: "build/web"`. Đọc từ (TTS) hoạt động ngay sau khi deploy nhờ Web Speech API trong trình duyệt.
+
+**Nếu dùng prebuilt (tùy chọn):**
+
+```bash
+flutter build web --release
 mkdir -p .vercel/output/static
 cp -r build/web/* .vercel/output/static/
 cp vercel.output.config.json .vercel/output/config.json
-
-# Deploy
 vercel deploy --prebuilt --prod --yes
 ```
 
-**Lưu ý:** Phải dùng `vercel.output.config.json` (có `"handle":"filesystem"`) để Vercel phục vụ file JS/assets trước, chỉ fallback về `index.html` khi không có file. Thiếu bước này sẽ bị màn hình trắng.
+Prebuilt cần `vercel.output.config.json` (có `"handle":"filesystem"`) để tránh màn hình trắng.
 
 Lần đầu chạy sẽ yêu cầu đăng nhập và cấu hình project.
