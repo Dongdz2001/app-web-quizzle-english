@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderBox, RenderStack;
@@ -31,6 +32,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   Offset? _guidePosition;
 
   final FlutterTts _flutterTts = FlutterTts();
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
   @override
   void initState() {
@@ -50,6 +52,9 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     try {
       _flutterTts.stop();
     } catch (_) {}
+    try {
+      _audioPlayer.dispose();
+    } catch (_) {}
     if (!kIsWeb) {
       SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     }
@@ -65,16 +70,28 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     }
   }
 
-  /// Click đơn: web dùng Web Speech API, còn lại dùng FlutterTts.
+  /// Google TTS URL (miễn phí, dùng trên mobile — không CORS).
+  static String _googleTtsUrl(String text, {String tl = 'en'}) {
+    final q = Uri.encodeComponent(text);
+    return 'https://translate.google.com/translate_tts?ie=UTF-8&q=$q&tl=$tl&client=tw-ob';
+  }
+
+  /// Click đơn: web = Web Speech API, mobile = Google TTS URL rồi FlutterTts.
   Future<void> _speakWord(Vocabulary word) async {
     try {
       await _flutterTts.stop();
+    } catch (_) {}
+    try {
+      await _audioPlayer.stop();
     } catch (_) {}
 
     try {
       if (kIsWeb) {
         final ok = await web_speech.speakText(word.word, lang: 'en-US');
         if (ok) return;
+      } else {
+        await _audioPlayer.play(UrlSource(_googleTtsUrl(word.word, tl: 'en')));
+        return;
       }
     } catch (_) {}
 
@@ -173,8 +190,10 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                                 scale = 1.0 + (count - 8) * 0.06; // 40 từ ~2.9x, 60 từ ~4.1x
                               }
                               scale = scale.clamp(1.0, 10.0);
-                              final cw = vw * scale * 1.35; // mở rộng ngang hơn để không bị kẹt
-                              final ch = vh * scale;
+                              final extraW = kIsWeb ? 0.0 : (vw * scale * 0.2);
+                              final extraH = kIsWeb ? 0.0 : (vh * scale * 0.2);
+                              final cw = vw * scale * 1.35 + extraW * 2; // mở rộng ngang hơn để không bị kẹt
+                              final ch = vh * scale + extraH * 2;
                               return Stack(
                                 clipBehavior: Clip.none,
                                 children: [

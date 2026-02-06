@@ -112,10 +112,11 @@ class _LearnScreenState extends State<LearnScreen> {
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                             ),
-                                            if (word.englishDefinition != null) ...[
+                                            if (word.englishDefinition != null &&
+                                                word.englishDefinition!.isNotEmpty) ...[
                                               const SizedBox(height: 12),
                                               Text(
-                                                word.englishDefinition!,
+                                                'Phiên âm: ${word.englishDefinition!}',
                                                 style: Theme.of(context)
                                                     .textTheme
                                                     .bodyMedium

@@ -46,6 +46,8 @@ class TopicCloudView extends StatefulWidget {
 
 class _TopicCloudViewState extends State<TopicCloudView>
     with SingleTickerProviderStateMixin {
+  static const double _mobileHitSlop = 20;
+
   late AnimationController _animController;
   Size _layoutSize = Size.zero;
   List<_WordPlacement> _placements = [];
@@ -140,13 +142,31 @@ class _TopicCloudViewState extends State<TopicCloudView>
     super.dispose();
   }
 
+  /// So sánh nội dung words với _placements — nếu khác thì cần tính lại placement (sau khi sửa từ).
+  bool _wordsContentChanged(List<Vocabulary> words) {
+    if (_placements.length != words.length) return true;
+    for (var i = 0; i < words.length; i++) {
+      final a = _placements[i].word;
+      final b = words[i];
+      if (a.id != b.id ||
+          a.word != b.word ||
+          a.meaning != b.meaning ||
+          a.englishDefinition != b.englishDefinition) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
 
-        if (_layoutSize != size || _placements.length != widget.words.length) {
+        final wordsContentChanged = _placements.length != widget.words.length ||
+            _wordsContentChanged(widget.words);
+        if (_layoutSize != size || wordsContentChanged) {
           _layoutSize = size;
           _placements = _computePlacementsForSize(size);
         }
@@ -157,10 +177,19 @@ class _TopicCloudViewState extends State<TopicCloudView>
             return SizedBox(
               width: size.width,
               height: size.height,
-              child: Stack(
-                clipBehavior: Clip.none,
+              child: OverflowBox(
+                minWidth: size.width,
+                minHeight: size.height,
+                maxWidth: size.width * 4,
+                maxHeight: size.height * 4,
                 alignment: Alignment.center,
-                children: [
+                child: SizedBox(
+                  width: size.width,
+                  height: size.height,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
                   for (var i = 0; i < _placements.length; i++)
                     _buildWordCloud(_placements[i], index: i),
                   _buildCenterTopic(),
@@ -186,6 +215,8 @@ class _TopicCloudViewState extends State<TopicCloudView>
                       ),
                     ),
                 ],
+                ),
+                ),
               ),
             );
           },
@@ -225,7 +256,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
       w.meaning,
       if (w.wordForm.isNotEmpty) 'Loại từ: ${w.wordForm}',
       if (w.englishDefinition != null && w.englishDefinition!.isNotEmpty)
-        'Definition: ${w.englishDefinition}',
+        'Phiên âm: ${w.englishDefinition}',
       if (w.synonym != null && w.synonym!.isNotEmpty)
         'Từ đồng nghĩa: ${w.synonym}',
       if (w.antonym != null && w.antonym!.isNotEmpty)
@@ -316,9 +347,37 @@ class _TopicCloudViewState extends State<TopicCloudView>
       );
     }
 
+    // Mobile: vùng chạm lớn hơn và không bị scale theo hiệu ứng.
+    if (!kIsWeb) {
+      final hitW = p.cloudSize.width + _mobileHitSlop * 2;
+      final hitH = p.cloudSize.height + _mobileHitSlop * 2;
+      content = SizedBox(
+        width: hitW,
+        height: hitH,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            content,
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => widget.onWordTap(p.word),
+                onDoubleTap: widget.onWordDoubleTap != null
+                    ? () => widget.onWordDoubleTap!(p.word)
+                    : null,
+                onLongPress: () => widget.onWordLongPress(p.word),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Positioned(
-      left: p.finalLeft,
-      top: p.finalTop,
+      left: kIsWeb ? p.finalLeft : p.finalLeft - _mobileHitSlop,
+      top: kIsWeb ? p.finalTop : p.finalTop - _mobileHitSlop,
       child: content,
     );
   }
@@ -334,9 +393,9 @@ class _TopicCloudViewState extends State<TopicCloudView>
     final cloud = CloudWidget(
       size: p.cloudSize,
       tintColor: cloudColor,
-      onTap: () => widget.onWordTap(p.word),
-      onDoubleTap: widget.onWordDoubleTap != null ? () => widget.onWordDoubleTap!(p.word) : null,
-      onLongPress: () => widget.onWordLongPress(p.word),
+      onTap: kIsWeb ? () => widget.onWordTap(p.word) : null,
+      onDoubleTap: kIsWeb && widget.onWordDoubleTap != null ? () => widget.onWordDoubleTap!(p.word) : null,
+      onLongPress: kIsWeb ? () => widget.onWordLongPress(p.word) : null,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -349,6 +408,19 @@ class _TopicCloudViewState extends State<TopicCloudView>
               color: Colors.white,
             ),
           ),
+          if (p.word.englishDefinition != null &&
+              p.word.englishDefinition!.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              p.word.englishDefinition!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey[200],
+              ),
+            ),
+          ],
           const SizedBox(height: 2),
           Text(
             p.word.meaning,

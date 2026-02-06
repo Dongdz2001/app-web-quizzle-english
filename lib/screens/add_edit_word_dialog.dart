@@ -212,8 +212,8 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
       TextField(
         controller: _englishDefController,
         decoration: _fieldDecoration(
-          label: 'English definition (Tùy chọn)',
-          hint: isMobile ? '' : 'Giải nghĩa bằng tiếng Anh...',
+          label: 'Nhập phiên âm (Tùy chọn)',
+          hint: isMobile ? '' : 'VD: /twɪn/, phiên âm IPA...',
         ),
         maxLines: isMobile ? 2 : 3,
       ),
