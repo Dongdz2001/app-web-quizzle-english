@@ -1,6 +1,7 @@
 import 'package:antd_flutter_mobile/index.dart';
 import 'package:flutter/material.dart';
 
+import '../data/categories.dart';
 import '../models/topic.dart';
 import '../styles/app_buttons.dart';
 
@@ -16,12 +17,16 @@ class AddEditTopicDialog extends StatefulWidget {
 class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
   late TextEditingController _nameController;
   late TextEditingController _descController;
+  late String _selectedCategoryId;
+  int? _selectedGradeLevel;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.topic.name);
     _descController = TextEditingController(text: widget.topic.description ?? '');
+    _selectedCategoryId = widget.topic.categoryId;
+    _selectedGradeLevel = widget.topic.gradeLevel;
   }
 
   @override
@@ -78,6 +83,10 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                       description: _descController.text.trim().isEmpty
                           ? null
                           : _descController.text.trim(),
+                      categoryId: _selectedCategoryId,
+                      gradeLevel: _selectedCategoryId == CategoryIds.grade
+                          ? _selectedGradeLevel
+                          : null,
                     ),
                   );
                 },
@@ -109,6 +118,64 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                     onChange: (val) =>
                         setState(() => _descController.text = val ?? ''),
                   ),
+                  SizedBox(height: spacing),
+                  DropdownButtonFormField<String>(
+                    value: _selectedCategoryId,
+                    decoration: InputDecoration(
+                      labelText: 'Nhóm',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: kCategories.map((cat) {
+                      return DropdownMenuItem<String>(
+                        value: cat.id,
+                        child: Row(
+                          children: [
+                            Icon(cat.icon, size: 20),
+                            const SizedBox(width: 8),
+                            Text(cat.name),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _selectedCategoryId = value;
+                          if (value != CategoryIds.grade) {
+                            _selectedGradeLevel = null;
+                          } else if (_selectedGradeLevel == null) {
+                            _selectedGradeLevel = 1;
+                          }
+                        });
+                      }
+                    },
+                  ),
+                  if (_selectedCategoryId == CategoryIds.grade) ...[
+                    SizedBox(height: spacing),
+                    DropdownButtonFormField<int>(
+                      value: _selectedGradeLevel,
+                      decoration: InputDecoration(
+                        labelText: 'Lớp',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: List.generate(12, (index) {
+                        final grade = index + 1;
+                        return DropdownMenuItem<int>(
+                          value: grade,
+                          child: Text('Lớp $grade'),
+                        );
+                      }),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => _selectedGradeLevel = value);
+                        }
+                      },
+                    ),
+                  ],
                   if (isMobile) const SizedBox(height: 8),
                 ],
               ),

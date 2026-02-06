@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../data/categories.dart';
 import '../data/init_data_names.dart';
 import '../data/init_data_color_label.dart';
 import '../models/vocabulary.dart';
@@ -27,6 +28,8 @@ class TopicCloudView extends StatefulWidget {
   final Function(Vocabulary) onWordTap;
   final Function(Vocabulary)? onWordDoubleTap;
   final Function(Vocabulary) onWordLongPress;
+  /// Category ID để xác định cách hiển thị tên (ví dụ: grammar sẽ viết tắt)
+  final String? categoryId;
   /// Khi set: tooltip không vẽ trong view (dùng để vẽ bên ngoài). [position] = toạ độ global chuột (để đặt tooltip dưới con trỏ).
   final void Function(String? text, Offset? position)? onGuideTextChanged;
 
@@ -37,6 +40,7 @@ class TopicCloudView extends StatefulWidget {
     required this.onWordTap,
     this.onWordDoubleTap,
     required this.onWordLongPress,
+    this.categoryId,
     this.onGuideTextChanged,
   });
 
@@ -90,13 +94,20 @@ class _TopicCloudViewState extends State<TopicCloudView>
     final wordW = cloudSizes.map((s) => s.width).reduce(math.max);
     final wordH = cloudSizes.map((s) => s.height).reduce(math.max);
 
+    // Tính độ dài trung bình của các từ để xác định có phải grammar không
+    final avgWordLength = words.map((w) => w.word.length).reduce((a, b) => a + b) / words.length;
+    // Nếu độ dài trung bình > 15 ký tự (thường là câu grammar), tăng khoảng cách
+    final isLongText = avgWordLength > 15;
+    final radiusStepMultiplier = isLongText ? 2.0 : 1.0; // Tăng từ 1.5 lên 2.0 cho grammar
+    final spacingMultiplier = isLongText ? 1.8 : 1.0; // Tăng khoảng cách giữa các đám mây trên cùng vòng tròn
+
     final placements = <_WordPlacement>[];
     var wordIndex = 0;
     final minDim = math.min(w, h);
     final radiusFactor = kIsWeb ? 0.18 : 0.32;
     var radius = kIsWeb ? minDim * radiusFactor : math.max(minDim * radiusFactor, 100.0);
-    final radiusStep = wordH + 14;
-    final spacing = 12.0;
+    final radiusStep = (wordH + 14) * radiusStepMultiplier;
+    final spacing = 12.0 * spacingMultiplier;
     // Quỹ đạo ellipse: chiều ngang dài hơn (1.5), chiều dọc hẹp hơn (0.85)
     const ovalScaleX = 1.5;
     const ovalScaleY = 0.85;
@@ -190,9 +201,15 @@ class _TopicCloudViewState extends State<TopicCloudView>
                     clipBehavior: Clip.none,
                     alignment: Alignment.center,
                     children: [
+                  // Render tất cả các đám mây không hover trước
                   for (var i = 0; i < _placements.length; i++)
-                    _buildWordCloud(_placements[i], index: i),
+                    if (_hoveredPlacementIndex != i)
+                      _buildWordCloud(_placements[i], index: i),
+                  // Render tâm cụm
                   _buildCenterTopic(),
+                  // Render đám mây đang hover sau cùng (ở trên cùng) - đảm bảo z-index cao nhất
+                  if (_hoveredPlacementIndex != null)
+                    _buildWordCloud(_placements[_hoveredPlacementIndex!], index: _hoveredPlacementIndex!),
                   if (kIsWeb && widget.onGuideTextChanged == null)
                     Positioned.fill(
                       child: IgnorePointer(
@@ -225,8 +242,62 @@ class _TopicCloudViewState extends State<TopicCloudView>
     );
   }
 
+  /// Viết tắt tên tiếng Việt cho grammar: lấy chữ cái đầu của mỗi từ và in hoa, giữ lại phần tiếng Anh trong ngoặc đơn
+  String _abbreviateVietnameseName(String name) {
+    // Tách phần tiếng Việt và phần tiếng Anh trong ngoặc đơn
+    String vietnamesePart = name;
+    String? englishPart;
+    
+    if (name.contains('(')) {
+      final openParenIndex = name.indexOf('(');
+      vietnamesePart = name.substring(0, openParenIndex).trim();
+      final closeParenIndex = name.indexOf(')', openParenIndex);
+      if (closeParenIndex != -1) {
+        englishPart = name.substring(openParenIndex, closeParenIndex + 1);
+      } else {
+        englishPart = name.substring(openParenIndex);
+      }
+    }
+    
+    // Loại bỏ \n nếu có
+    vietnamesePart = vietnamesePart.replaceAll('\n', ' ').trim();
+    
+    // Tách thành các từ và lấy chữ cái đầu
+    final words = vietnamesePart.split(' ').where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) return name.toUpperCase();
+    
+    // Lấy chữ cái đầu của mỗi từ và in hoa
+    final abbreviation = words.map((w) {
+      // Lấy chữ cái đầu, bỏ qua dấu
+      final firstChar = w[0];
+      return firstChar.toUpperCase();
+    }).join('');
+    
+    // Kết hợp viết tắt tiếng Việt với phần tiếng Anh trong ngoặc đơn, xuống dòng
+    if (englishPart != null) {
+      return '$abbreviation\n$englishPart';
+    }
+    
+    return abbreviation;
+  }
+
   Widget _buildCenterTopic() {
     // Tâm cụm đặt chính xác tại (width/2, height/2) - đối xứng hoàn toàn
+    // Tự động xuống dòng cho tên dài (đặc biệt topic IPA có dấu ngoặc đơn)
+    // Nếu tên đã có \n thì giữ nguyên để hiển thị xuống dòng
+    String displayName = widget.topicName;
+    
+    // Nếu là grammar, viết tắt và in hoa tên tiếng Việt
+    if (widget.categoryId == CategoryIds.grammar) {
+      displayName = _abbreviateVietnameseName(displayName);
+    } else {
+      if (displayName.contains('(') && !displayName.contains('\n')) {
+        // Thêm \n trước dấu ngoặc đơn để xuống dòng
+        displayName = displayName.replaceFirst(' (', '\n(');
+      }
+    }
+    // Nếu tên đã có \n (như "Thành ngữ\nthông dụng"), Text widget sẽ tự động hiển thị xuống dòng
+    
     return Positioned(
       left: _layoutSize.width / 2,
       top: _layoutSize.height / 2,
@@ -237,10 +308,10 @@ class _TopicCloudViewState extends State<TopicCloudView>
           imageAsset: kCloudCenterImageAsset,
           padding: const EdgeInsets.all(kCloudPaddingCenter),
           child: Text(
-            widget.topicName,
+            displayName,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 26,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
               color: Colors.red,
             ),

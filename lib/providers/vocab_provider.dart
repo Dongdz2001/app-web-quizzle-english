@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../data/categories.dart';
 import '../models/learning_progress.dart';
 import '../models/topic.dart';
 import '../models/vocabulary.dart';
@@ -76,6 +77,18 @@ class VocabProvider extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Lấy danh sách topic theo nhóm (categoryId).
+  List<Topic> getTopicsByCategory(String categoryId) {
+    return _topics.where((t) => t.categoryId == categoryId).toList();
+  }
+
+  /// Lấy danh sách topic theo lớp (gradeLevel) — chỉ dùng cho categoryId = cat_grade.
+  List<Topic> getTopicsByGradeLevel(int gradeLevel) {
+    return _topics
+        .where((t) => t.categoryId == CategoryIds.grade && t.gradeLevel == gradeLevel)
+        .toList();
   }
 
   /// Thêm từ vựng vào 1 chủ đề.

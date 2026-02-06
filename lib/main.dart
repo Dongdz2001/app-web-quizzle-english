@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/vocab_provider.dart';
+import 'screens/category_topics_screen.dart';
+import 'screens/grade_levels_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/learn_screen.dart';
 import 'screens/practice_screen.dart';
@@ -30,6 +32,8 @@ class VocabApp extends StatelessWidget {
         initialRoute: '/',
         routes: {
           '/': (_) => const HomeScreen(),
+          '/grade-levels': (_) => const GradeLevelsScreen(),
+          '/category-topics': (_) => const CategoryTopicsScreen(),
           '/topic': (_) => const TopicDetailScreen(),
           '/learn': (_) => const LearnScreen(),
           '/practice': (_) => const PracticeScreen(),

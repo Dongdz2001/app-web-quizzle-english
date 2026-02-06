@@ -206,8 +206,9 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                                       width: cw,
                                       height: ch,
                                       child: TopicCloudView(
-                                        topicName: topic.name,
+                                        topicName: topic.displayName ?? topic.name,
                                         words: topic.words,
+                                        categoryId: topic.categoryId,
                                         onWordTap: (word) {
                                           _speakWord(word).catchError((_) {});
                                         },
