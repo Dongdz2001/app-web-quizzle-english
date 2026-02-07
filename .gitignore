@@ -45,3 +45,9 @@ app.*.map.json
 /android/app/release
 .vercel
 .env*.local
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log

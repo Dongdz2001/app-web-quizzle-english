@@ -1,23 +1,43 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'firebase/firebase_init.dart';
 import 'providers/vocab_provider.dart';
+import 'screens/admin_dashboard_screen.dart';
 import 'screens/category_topics_screen.dart';
 import 'screens/grade_levels_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/learn_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/practice_screen.dart';
 import 'screens/progress_screen.dart';
 import 'screens/quiz_screen.dart';
 import 'screens/topic_detail_screen.dart';
 import 'styles/app_theme.dart';
 
-void main() {
-  runApp(const VocabApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  bool firebaseInitialized = false;
+  try {
+    await initializeFirebase();
+    firebaseInitialized = true;
+    print('Firebase initialized successfully');
+  } catch (e) {
+    print('Warning: Firebase initialization failed: $e');
+    print('App will continue without Firebase authentication');
+    // Continue app execution even if Firebase fails
+  }
+  
+  runApp(VocabApp(firebaseInitialized: firebaseInitialized));
 }
 
 class VocabApp extends StatelessWidget {
-  const VocabApp({super.key});
+  final bool firebaseInitialized;
+  
+  const VocabApp({super.key, this.firebaseInitialized = false});
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +51,11 @@ class VocabApp extends StatelessWidget {
         themeMode: ThemeMode.system,
         initialRoute: '/',
         routes: {
-          '/': (_) => const HomeScreen(),
+          '/': (_) => firebaseInitialized ? const AuthWrapper() : const HomeScreen(),
+          '/login': (_) => const LoginScreen(),
+          '/admin/login': (_) => const LoginScreen(isAdminLogin: true),
+          '/admin': (_) => const AdminDashboardScreen(),
+          '/home': (_) => const HomeScreen(),
           '/grade-levels': (_) => const GradeLevelsScreen(),
           '/category-topics': (_) => const CategoryTopicsScreen(),
           '/topic': (_) => const TopicDetailScreen(),
@@ -42,5 +66,59 @@ class VocabApp extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+/// Widget wrapper để kiểm tra authentication state
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    try {
+      // Kiểm tra Firebase Auth có sẵn sàng không
+      final auth = FirebaseAuth.instance;
+      
+      return StreamBuilder<User?>(
+        stream: auth.authStateChanges(),
+        builder: (context, snapshot) {
+          // Xử lý lỗi
+          if (snapshot.hasError) {
+            print('Auth error: ${snapshot.error}');
+            // Nếu có lỗi, hiển thị login screen
+            return const LoginScreen();
+          }
+
+          // Đang kiểm tra authentication
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+
+          // Chưa đăng nhập -> hiển thị login screen
+          if (snapshot.data == null) {
+            return const LoginScreen();
+          }
+
+          // Đã đăng nhập -> kiểm tra admin
+          final user = snapshot.data!;
+          final isAdmin = user.email?.toLowerCase() == 'adminchi@gmail.com';
+
+          if (isAdmin) {
+            return const AdminDashboardScreen();
+          }
+
+          // User thường -> hiển thị home screen
+          return const HomeScreen();
+        },
+      );
+    } catch (e) {
+      print('Error in AuthWrapper: $e');
+      // Nếu có lỗi, hiển thị login screen
+      return const LoginScreen();
+    }
   }
 }
