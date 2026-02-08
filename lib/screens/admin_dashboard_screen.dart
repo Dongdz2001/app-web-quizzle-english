@@ -1208,6 +1208,116 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  Future<void> _bulkChangeClass(String? newClassCode) async {
+    if (_selectedUserIds.isEmpty) return;
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đang cập nhật lớp học...'),
+          duration: Duration(seconds: 30),
+        ),
+      );
+    }
+
+    int successCount = 0;
+
+    try {
+      final batch = _firestore.batch();
+      for (var userId in _selectedUserIds) {
+        final docRef = _firestore.collection('users').doc(userId);
+        batch.update(docRef, {
+          'classCode': newClassCode?.isNotEmpty == true ? newClassCode : null,
+        });
+      }
+      await batch.commit();
+      successCount = _selectedUserIds.length;
+    } catch (e) {
+      print('Lỗi cập nhật lớp học hàng loạt: $e');
+    } finally {
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        if (successCount > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đã chuyển $successCount tài khoản sang lớp ${newClassCode?.isEmpty == true ? "Trống" : newClassCode}'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          setState(() {
+            _selectedUserIds.clear();
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Lỗi cập nhật lớp học'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showChangeClassDialog(BuildContext context) {
+    String? localSelectedClass = _classes.isNotEmpty ? _classes.first : '';
+    
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Chuyển lớp hàng loạt'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Đang chọn ${_selectedUserIds.length} tài khoản'),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: localSelectedClass,
+                decoration: const InputDecoration(
+                  labelText: 'Chọn lớp mới',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem<String>(
+                    value: '',
+                    child: Text('Không chọn lớp'),
+                  ),
+                  ..._classes.map((c) => DropdownMenuItem(
+                    value: c,
+                    child: Text(c),
+                  )),
+                ],
+                onChanged: (value) {
+                  setDialogState(() {
+                    localSelectedClass = value;
+                  });
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                Navigator.pop(context);
+                _bulkChangeClass(localSelectedClass);
+              },
+              child: const Text('Lưu & Thay đổi'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Hiển thị loading trong khi đang kiểm tra user
@@ -1487,6 +1597,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _selectedUserIds.isEmpty
+                              ? null
+                              : () => _showChangeClassDialog(context),
+                          icon: const Icon(Icons.drive_file_move_outline),
+                          label: const Text('Chuyển lớp'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            backgroundColor: Colors.orange,
                             foregroundColor: Colors.white,
                           ),
                         ),
