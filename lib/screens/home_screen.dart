@@ -99,7 +99,44 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ghi Nhớ Từ Vựng'),
+        title: Consumer<VocabProvider>(
+          builder: (context, provider, _) {
+            if (provider.isAdmin) {
+              return Row(
+                children: [
+                  const Text('Admin'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String?>(
+                        value: provider.adminViewingClassCode,
+                        hint: const Text('Xem tất cả lớp', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                        dropdownColor: Theme.of(context).colorScheme.primary,
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                        isExpanded: true,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        items: [
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('Tất cả các lớp'),
+                          ),
+                          ...provider.availableClasses.map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text('Lớp $c'),
+                          )),
+                        ],
+                        onChanged: (value) {
+                          provider.setAdminViewingClass(value);
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return const Text('Ghi Nhớ Từ Vựng');
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.analytics_outlined),

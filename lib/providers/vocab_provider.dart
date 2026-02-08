@@ -12,20 +12,30 @@ class VocabProvider extends ChangeNotifier {
 
   List<Topic> _topics = [];
   Map<String, LearningProgress> _progress = {};
-  bool _isLoading = true;
+  bool _isLoading = false;
   String? _userClassCode;
+  String? _adminViewingClassCode;
   bool _isAdmin = false;
+  List<String> _availableClasses = [];
   StreamSubscription<List<Topic>>? _topicsSubscription;
+  StreamSubscription<List<String>>? _classesSubscription;
 
   List<Topic> get topics => _topics;
   Map<String, LearningProgress> get progress => _progress;
   bool get isLoading => _isLoading;
   String? get userClassCode => _userClassCode;
+  String? get adminViewingClassCode => _adminViewingClassCode;
   bool get isAdmin => _isAdmin;
+  List<String> get availableClasses => _availableClasses;
 
   /// Danh sách topic đã được lọc theo quyền hạn và lớp học (Độc lập dữ liệu)
   List<Topic> get filteredTopics {
-    if (_isAdmin) return _topics; // Admin thấy toàn bộ dữ liệu
+    // Nếu là admin và có chọn lớp cụ thể để xem -> Lọc theo lớp đó
+    if (_isAdmin && _adminViewingClassCode != null && _adminViewingClassCode!.isNotEmpty) {
+      return _topics.where((t) => t.classCode == _adminViewingClassCode).toList();
+    }
+    
+    if (_isAdmin) return _topics; // Admin mặc định thấy toàn bộ dữ liệu
 
     // Nếu user có lớp cụ thể -> CHỈ thấy topic của lớp đó
     if (_userClassCode != null && _userClassCode!.isNotEmpty) {
@@ -42,9 +52,15 @@ class VocabProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setAdminViewingClass(String? classCode) {
+    _adminViewingClassCode = classCode;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _topicsSubscription?.cancel();
+    _classesSubscription?.cancel();
     super.dispose();
   }
 
@@ -52,9 +68,19 @@ class VocabProvider extends ChangeNotifier {
   Future<void> loadData() async {
     // Hủy subscription cũ nếu có
     await _topicsSubscription?.cancel();
+    await _classesSubscription?.cancel();
 
     _isLoading = true;
     notifyListeners();
+
+    // Lắng nghe Stream các lớp học (Realtime)
+    _classesSubscription = _firebaseService.getAvailableClassesStream().listen(
+      (classes) {
+        _availableClasses = classes;
+        notifyListeners();
+      },
+      onError: (e) => print('Error in classes stream: $e'),
+    );
 
     // Lắng nghe Stream từ Firestore (Realtime)
     _topicsSubscription = _firebaseService.topicsStream().listen(

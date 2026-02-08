@@ -5,6 +5,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/vocab_provider.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -1280,6 +1283,53 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  void _showHomeClassSelector() {
+    final vocabProvider = Provider.of<VocabProvider>(context, listen: false);
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Chọn lớp để xem'),
+        content: SizedBox(
+          width: 300,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _classes.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return ListTile(
+                  leading: const Icon(Icons.apps, color: Colors.blue),
+                  title: const Text('Tất cả các lớp'),
+                  onTap: () {
+                    vocabProvider.setAdminViewingClass(null);
+                    Navigator.pop(context);
+                    Navigator.of(this.context).pushNamed('/home');
+                  },
+                );
+              }
+              final classCode = _classes[index - 1];
+              return ListTile(
+                leading: const Icon(Icons.class_outlined, color: Colors.blue),
+                title: Text('Lớp $classCode'),
+                onTap: () {
+                  vocabProvider.setAdminViewingClass(classCode);
+                  Navigator.pop(context);
+                  Navigator.of(this.context).pushNamed('/home');
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Hiển thị loading trong khi đang kiểm tra user
@@ -1295,6 +1345,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       appBar: AppBar(
         title: const Text('Trang Quản Trị'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.home),
+            onPressed: _showHomeClassSelector,
+            tooltip: 'Trang chủ',
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: _logout,
