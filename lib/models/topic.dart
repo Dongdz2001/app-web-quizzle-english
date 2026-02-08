@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../data/categories.dart';
 import 'user_metadata.dart';
 import 'vocabulary.dart';
@@ -122,6 +123,13 @@ class Topic {
   }
 
   factory Topic.fromFirestore(Map<String, dynamic> json) {
+    DateTime? parseDateTime(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is String) return DateTime.tryParse(value);
+      if (value is DateTime) return value;
+      return null;
+    }
+
     return Topic(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -136,15 +144,11 @@ class Topic {
       createdBy: json['createdBy'] != null
           ? CreatorMetadata.fromJson(json['createdBy'] as Map<String, dynamic>)
           : null,
-      createdAt: json['createdAt'] != null
-          ? (json['createdAt'] as DateTime)
-          : null,
+      createdAt: parseDateTime(json['createdAt']),
       updatedBy: json['updatedBy'] != null
           ? CreatorMetadata.fromJson(json['updatedBy'] as Map<String, dynamic>)
           : null,
-      updatedAt: json['updatedAt'] != null
-          ? (json['updatedAt'] as DateTime)
-          : null,
+      updatedAt: parseDateTime(json['updatedAt']),
     );
   }
 }

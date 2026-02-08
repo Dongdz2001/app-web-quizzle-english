@@ -108,7 +108,7 @@ class FirebaseService {
   }
 
   /// Tạo topic mới
-  Future<String> createTopic(Topic topic) async {
+  Future<Topic> createTopic(Topic topic) async {
     try {
       final userMetadata = await _getCurrentUserMetadata();
       final now = DateTime.now();
@@ -133,7 +133,15 @@ class FirebaseService {
       }
 
       final docRef = await _firestore.collection(_topicsCollection).add(topicData);
-      return docRef.id;
+      
+      // Trả về topic đã được gắn metadata
+      return topic.copyWith(
+        id: docRef.id,
+        createdBy: userMetadata,
+        createdAt: now,
+        updatedBy: userMetadata,
+        updatedAt: now,
+      );
     } catch (e) {
       print('Error creating topic: $e');
       rethrow;
@@ -183,8 +191,8 @@ class FirebaseService {
     }
   }
 
-  /// Thêm word vào topic
-  Future<void> addWordToTopic(String topicId, Vocabulary word) async {
+  /// Thêm word vào topic. Trả về word kèm metadata người tạo.
+  Future<Vocabulary> addWordToTopic(String topicId, Vocabulary word) async {
     try {
       final userMetadata = await _getCurrentUserMetadata();
       final now = DateTime.now();
@@ -210,6 +218,13 @@ class FirebaseService {
         'updatedBy': userMetadata.toJson(),
         'updatedAt': now,
       });
+
+      return word.copyWith(
+        createdBy: userMetadata,
+        createdAt: now,
+        updatedBy: userMetadata,
+        updatedAt: now,
+      );
     } catch (e) {
       print('Error adding word to topic: $e');
       rethrow;

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderBox, RenderStack;
@@ -339,12 +340,24 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     }
   }
 
+  bool get _isAdmin {
+    final user = FirebaseAuth.instance.currentUser;
+    return user?.email?.toLowerCase() == 'adminchi@gmail.com';
+  }
+
   void _showWordContextMenu(
     BuildContext context,
     VocabProvider provider,
     String topicId,
     Vocabulary word,
   ) {
+    if (!_isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chỉ Admin mới có quyền sửa hoặc xóa từ vựng')),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       builder: (_) => SafeArea(
@@ -379,6 +392,13 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     String topicId,
     Vocabulary word,
   ) async {
+    if (!_isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Chỉ Admin mới có quyền sửa hoặc xóa từ vựng')),
+      );
+      return;
+    }
+
     if (!kIsWeb) {
       await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     }
@@ -403,6 +423,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     String topicId,
     Vocabulary word,
   ) async {
+    if (!_isAdmin) return;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(

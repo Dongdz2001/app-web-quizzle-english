@@ -1,74 +1,114 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../data/categories.dart';
 import '../models/learning_progress.dart';
 import '../models/topic.dart';
 import '../models/vocabulary.dart';
-import '../services/storage_service.dart';
+import '../services/firebase_service.dart';
 
 class VocabProvider extends ChangeNotifier {
-  final StorageService _storage = StorageService();
+  final FirebaseService _firebaseService = FirebaseService();
 
   List<Topic> _topics = [];
   Map<String, LearningProgress> _progress = {};
   bool _isLoading = true;
+  StreamSubscription<List<Topic>>? _topicsSubscription;
 
   List<Topic> get topics => _topics;
   Map<String, LearningProgress> get progress => _progress;
   bool get isLoading => _isLoading;
 
+  @override
+  void dispose() {
+    _topicsSubscription?.cancel();
+    super.dispose();
+  }
+
+  /// Bắt đầu đồng bộ dữ liệu Realtime từ Firestore
   Future<void> loadData() async {
+    // Hủy subscription cũ nếu có
+    await _topicsSubscription?.cancel();
+
     _isLoading = true;
     notifyListeners();
 
-    await _storage.init();
-    await _storage.seedDemoData();
-    _topics = await _storage.getTopics();
-    _progress = await _storage.getProgress();
-
-    for (final topic in _topics) {
-      if (!_progress.containsKey(topic.id)) {
-        _progress[topic.id] = LearningProgress(
-          topicId: topic.id,
-          totalWords: topic.words.length,
-        );
-      } else {
-        _progress[topic.id]!.totalWords = topic.words.length;
-      }
-    }
-
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  Future<void> addTopic(Topic topic) async {
-    _topics.add(topic);
-    _progress[topic.id] = LearningProgress(
-      topicId: topic.id,
-      totalWords: topic.words.length,
+    // Lắng nghe Stream từ Firestore (Realtime)
+    _topicsSubscription = _firebaseService.topicsStream().listen(
+      (updatedTopics) {
+        _topics = updatedTopics;
+        
+        // Cập nhật progress dựa trên số lượng từ mới nhất
+        for (final topic in _topics) {
+          if (!_progress.containsKey(topic.id)) {
+            _progress[topic.id] = LearningProgress(
+              topicId: topic.id,
+              totalWords: topic.words.length,
+            );
+          } else {
+            _progress[topic.id]!.totalWords = topic.words.length;
+          }
+        }
+        
+        _isLoading = false;
+        notifyListeners(); // Thông báo cho UI vẽ lại (đám mây sẽ hiện từ mới ngay)
+      },
+      onError: (e) {
+        print('Error in topics stream: $e');
+        _isLoading = false;
+        notifyListeners();
+      },
     );
-    await _storage.saveTopics(_topics);
-    await _storage.saveProgress(_progress);
-    notifyListeners();
   }
 
-  Future<void> updateTopic(Topic topic) async {
-    final index = _topics.indexWhere((t) => t.id == topic.id);
-    if (index >= 0) {
-      _topics[index] = topic;
-      _progress[topic.id]!.totalWords = topic.words.length;
-      await _storage.saveTopics(_topics);
-      await _storage.saveProgress(_progress);
+  /// Thêm topic mới lên Firestore
+  Future<void> addTopic(Topic topic) async {
+    try {
+      // Tạo topic trên Firestore và nhận lại topic kèm metadata
+      final savedTopic = await _firebaseService.createTopic(topic);
+      
+      _topics.add(savedTopic);
+      _progress[savedTopic.id] = LearningProgress(
+        topicId: savedTopic.id,
+        totalWords: savedTopic.words.length,
+      );
+      
       notifyListeners();
+    } catch (e) {
+      print('Error adding topic: $e');
+      rethrow;
     }
   }
 
+  /// Cập nhật topic trên Firestore
+  Future<void> updateTopic(Topic topic) async {
+    try {
+      await _firebaseService.updateTopic(topic);
+      
+      final index = _topics.indexWhere((t) => t.id == topic.id);
+      if (index >= 0) {
+        _topics[index] = topic;
+        _progress[topic.id]!.totalWords = topic.words.length;
+        notifyListeners();
+      }
+    } catch (e) {
+      print('Error updating topic: $e');
+      rethrow;
+    }
+  }
+
+  /// Xóa topic khỏi Firestore
   Future<void> deleteTopic(String topicId) async {
-    _topics.removeWhere((t) => t.id == topicId);
-    _progress.remove(topicId);
-    await _storage.saveTopics(_topics);
-    await _storage.saveProgress(_progress);
-    notifyListeners();
+    try {
+      await _firebaseService.deleteTopic(topicId);
+      
+      _topics.removeWhere((t) => t.id == topicId);
+      _progress.remove(topicId);
+      notifyListeners();
+    } catch (e) {
+      print('Error deleting topic: $e');
+      rethrow;
+    }
   }
 
   Topic? getTopic(String id) {
@@ -107,38 +147,58 @@ class VocabProvider extends ChangeNotifier {
       return false;
     }
 
-    topic.words.add(word);
-    _progress[topicId]!.totalWords = topic.words.length;
-    await _storage.saveTopics(_topics);
-    await _storage.saveProgress(_progress);
-    notifyListeners();
+    try {
+      // Gửi lên Firestore và nhận lại từ có đầy đủ thông tin người tạo (userName)
+      final savedWord = await _firebaseService.addWordToTopic(topicId, word);
+      
+      topic.words.add(savedWord);
+      _progress[topicId]!.totalWords = topic.words.length;
+      notifyListeners();
 
-    return true;
+      return true;
+    } catch (e) {
+      print('Error adding word: $e');
+      return false;
+    }
   }
 
+  /// Cập nhật từ vựng
   Future<void> updateWord(String topicId, Vocabulary word) async {
     final topic = getTopic(topicId);
     if (topic != null) {
       final index = topic.words.indexWhere((w) => w.id == word.id);
       if (index >= 0) {
-        topic.words[index] = word;
-        await _storage.saveTopics(_topics);
-        notifyListeners();
+        try {
+          await _firebaseService.updateWordInTopic(topicId, word);
+          
+          topic.words[index] = word;
+          notifyListeners();
+        } catch (e) {
+          print('Error updating word: $e');
+          rethrow;
+        }
       }
     }
   }
 
+  /// Xóa từ vựng
   Future<void> deleteWord(String topicId, String wordId) async {
     final topic = getTopic(topicId);
     if (topic != null) {
-      topic.words.removeWhere((w) => w.id == wordId);
-      _progress[topicId]!.totalWords = topic.words.length;
-      await _storage.saveTopics(_topics);
-      await _storage.saveProgress(_progress);
-      notifyListeners();
+      try {
+        await _firebaseService.deleteWordFromTopic(topicId, wordId);
+        
+        topic.words.removeWhere((w) => w.id == wordId);
+        _progress[topicId]!.totalWords = topic.words.length;
+        notifyListeners();
+      } catch (e) {
+        print('Error deleting word: $e');
+        rethrow;
+      }
     }
   }
 
+  /// Cập nhật tiến trình học tập
   void updateProgress(String topicId, {int correct = 0, int wrong = 0}) {
     final p = _progress[topicId];
     if (p != null) {
@@ -146,19 +206,24 @@ class VocabProvider extends ChangeNotifier {
       p.wrongCount += wrong;
       p.learnedWords = (p.learnedWords + correct + wrong).clamp(0, p.totalWords);
       p.lastStudyTime = DateTime.now();
-      _storage.saveProgress(_progress);
+      
+      // TODO: Lưu progress lên Firestore
+      // await _firebaseService.updateUserProgress(userId, topicId, p);
+      
       notifyListeners();
     }
   }
 
+  /// Lưu tiến trình
   Future<void> saveProgress() async {
-    await _storage.saveProgress(_progress);
+    // TODO: Implement save progress to Firestore
     notifyListeners();
   }
 
-  /// Reset dữ liệu, xóa cache và seed lại demo (40 từ Gia đình, v.v.).
+  /// Reset dữ liệu (không còn seed demo nữa)
   Future<void> resetData() async {
-    await _storage.clearAllData();
+    _topics = [];
+    _progress = {};
     await loadData();
   }
 }

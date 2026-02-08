@@ -1,14 +1,205 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../data/categories.dart';
 import '../providers/vocab_provider.dart';
 
-/// Màn chính: chia nhóm topic — 5 nhóm (Từ vựng theo chủ đề, theo lớp, Ngữ pháp, Idiom, Phát âm IPA).
-/// Web và mobile dùng chung; tap vào nhóm → màn danh sách topic của nhóm đó.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Kiểm tra thông tin người dùng sau khi frame đầu tiên được render
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkUserProfile();
+    });
+  }
+
+  Future<void> _checkUserProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data();
+        if (data != null && (data['userName'] == null || data['userName'].toString().isEmpty)) {
+          if (mounted) {
+            _showUpdateNameDialog(context, user.uid);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Lỗi khi kiểm tra profile: $e');
+    }
+  }
+
+  void _showUpdateNameDialog(BuildContext context, String uid) {
+    final controller = TextEditingController();
+    bool isUpdating = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Bắt buộc người dùng phải nhập
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Chào mừng bạn!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Vui lòng cho biết tên của bạn để bắt đầu học nhé:'),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  decoration: const InputDecoration(
+                    labelText: 'Tên của bạn',
+                    border: OutlineInputBorder(),
+                    hintText: 'Nhập tên...',
+                  ),
+                  autofocus: true,
+                ),
+              ],
+            ),
+            actions: [
+              if (isUpdating)
+                const CircularProgressIndicator()
+              else
+                ElevatedButton(
+                  onPressed: () async {
+                    final name = controller.text.trim();
+                    if (name.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Vui lòng nhập tên')),
+                      );
+                      return;
+                    }
+
+                    setDialogState(() => isUpdating = true);
+
+                    try {
+                      await FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(uid)
+                          .update({'userName': name});
+                      
+                      if (context.mounted) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Cập nhật thành công!')),
+                        );
+                      }
+                    } catch (e) {
+                      setDialogState(() => isUpdating = false);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Lỗi: $e')),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Bắt đầu'),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showProfileDialog(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
+        builder: (context, snapshot) {
+          String userName = 'Đang tải...';
+          String email = user.email ?? 'Không có email';
+
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final data = snapshot.data!.data() as Map<String, dynamic>?;
+            userName = data?['userName'] ?? 'Chưa cập nhật';
+          } else if (snapshot.hasError) {
+            userName = 'Lỗi khi tải';
+          }
+
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.person, color: Colors.blue),
+                SizedBox(width: 10),
+                Text('Thông tin tài khoản'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Họ và tên:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(userName),
+                const SizedBox(height: 12),
+                const Text('Email:', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(email),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Đóng'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Đăng xuất'),
+        content: const Text('Bạn có chắc chắn muốn đăng xuất?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await FirebaseAuth.instance.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushReplacementNamed('/login');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Đăng xuất'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +211,16 @@ class HomeScreen extends StatelessWidget {
             icon: const Icon(Icons.analytics_outlined),
             tooltip: 'Tiến trình',
             onPressed: () => Navigator.pushNamed(context, '/progress'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Thông tin cá nhân',
+            onPressed: () => _showProfileDialog(context),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Đăng xuất',
+            onPressed: () => _showLogoutDialog(context),
           ),
         ],
       ),

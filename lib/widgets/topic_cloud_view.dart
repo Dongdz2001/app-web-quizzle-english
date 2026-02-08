@@ -454,11 +454,18 @@ class _TopicCloudViewState extends State<TopicCloudView>
   }
 
   Widget _cloudContent(_WordPlacement p, {bool showLabel = false}) {
-    // Demo: mỗi đám mây 1 tên, 1 màu label, 1 màu đám mây (ngẫu nhiên).
-    final seed = widget.topicName.hashCode ^ p.word.id.hashCode;
+    // Lấy thông tin người tạo thực tế
+    final creatorName = p.word.createdBy?.userName ?? 'Ẩn danh';
+    final userId = p.word.createdBy?.userId ?? '';
+    
+    // Gán màu sắc cố định cho mỗi user dựa trên hash của userId
+    final labelColor = userId.isNotEmpty 
+        ? Colors.primaries[userId.hashCode % Colors.primaries.length]
+        : const Color(0xFF9E9E9E);
+
+    // Màu đám mây ngẫu nhiên nhưng ổn định cho mỗi từ
+    final seed = p.word.id.hashCode;
     final rnd = math.Random(seed);
-    final demoName = initDataNames[rnd.nextInt(initDataNames.length)];
-    final demoColor = initDataColors[rnd.nextInt(initDataColors.length)];
     final cloudColor = initDataColors[rnd.nextInt(initDataColors.length)];
 
     final cloud = CloudWidget(
@@ -505,18 +512,22 @@ class _TopicCloudViewState extends State<TopicCloudView>
       ),
     );
 
-    // Gắn label nhỏ ở góc trên bên phải đám mây; chỉ hiện khi hover (web).
+    // Gắn label nhỏ ở góc trên bên phải đám mây
+    // Trên web: Hiện khi hover (showLabel truyền từ ngoài vào)
+    // Trên mobile: Luôn hiện nếu có tên người tạo
+    final shouldDisplayLabel = kIsWeb ? showLabel : (p.word.createdBy?.userName != null);
+
     return Stack(
       clipBehavior: Clip.none,
       children: [
         cloud,
-        if (showLabel)
+        if (shouldDisplayLabel)
           Positioned(
             top: kCreatorLabelTopOffset,
             right: kCreatorLabelRightOffset,
             child: _CreatorLabel(
-              name: demoName,
-              labelColor: demoColor,
+              name: creatorName,
+              labelColor: labelColor,
               cloudSize: p.cloudSize,
             ),
           ),

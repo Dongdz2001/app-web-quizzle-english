@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,15 +16,16 @@ class AdminDashboardScreen extends StatefulWidget {
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  // Controllers cho tạo tài khoản đơn lẻ
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
+  final _classCodeController = TextEditingController(); // Vẫn giữ để fallback hoặc dùng class selection thay thế
   
   // Controllers cho tạo hàng loạt
   final _bulkQuantityController = TextEditingController(text: '10');
   final _bulkPrefixController = TextEditingController(text: 'user');
   final _bulkSuffixController = TextEditingController(text: 'quizzle.com');
+  final _bulkClassCodeController = TextEditingController();
   
   // Filter và selection
   final _filterController = TextEditingController();
@@ -39,45 +41,106 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   String? _successMessage;
   String? _bulkErrorMessage;
   String? _bulkSuccessMessage;
+  
+  List<String> _classes = [];
+  String? _selectedClassInDialog;
 
   @override
   void initState() {
     super.initState();
     _checkUserExists();
+    _loadClasses();
+  }
+
+  Future<void> _loadClasses() async {
+    try {
+      final snapshot = await _firestore.collection('classes').get();
+      setState(() {
+        _classes = snapshot.docs.map((doc) => doc.id).toList();
+        _classes.sort();
+      });
+    } catch (e) {
+      print('Lỗi tải danh sách lớp: $e');
+    }
+  }
+
+  Future<void> _createClass(String classCode) async {
+    if (classCode.isEmpty) return;
+    try {
+      await _firestore.collection('classes').doc(classCode).set({
+        'classCode': classCode,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      await _loadClasses();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Đã tạo lớp $classCode thành công')),
+        );
+      }
+    } catch (e) {
+      print('Lỗi tạo lớp: $e');
+    }
+  }
+
+  void _showCreateClassDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Tạo lớp mới'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Mã lớp',
+            hintText: 'VD: 12A1, K8...',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final code = controller.text.trim().toUpperCase();
+              if (code.isNotEmpty) {
+                Navigator.pop(context);
+                _createClass(code);
+              }
+            },
+            child: const Text('Tạo lớp'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Xóa user khỏi Firebase Auth thông qua Cloud Function
   /// Sử dụng Firebase Cloud Functions callable function
-  Future<void> _deleteUserFromAuth(String userId) async {
+  /// Trả về true nếu xóa thành công, false nếu thất bại
+  Future<bool> _deleteUserFromAuth(String userId) async {
     try {
-      // Gọi Cloud Function 'deleteUser'
-      final callable = FirebaseFunctions.instance.httpsCallable('deleteUser');
+      // Gọi Cloud Function 'deleteUserByUid'
+      final callable = FirebaseFunctions.instance.httpsCallable('deleteUserByUid');
       
-      // Gọi function với userId
-      final result = await callable.call({'userId': userId});
+      // Gọi function với uid
+      final result = await callable.call({'uid': userId});
       
       // Kiểm tra kết quả
       final data = result.data as Map<String, dynamic>;
       if (data['success'] == true) {
         print('Successfully deleted user $userId from Firebase Auth');
+        return true;
       } else {
         print('Warning: User deletion may have failed: ${data['message']}');
+        return false;
       }
     } catch (e) {
       // Xử lý lỗi từ Cloud Function
-      // Kiểm tra error code từ exception
-      final errorString = e.toString().toLowerCase();
-      
-      // Nếu là lỗi permission-denied hoặc unauthenticated, log và tiếp tục
-      // Vì user đã được xóa khỏi Firestore rồi
-      if (errorString.contains('permission-denied') || 
-          errorString.contains('unauthenticated')) {
-        print('Warning: Cannot delete user from Auth due to permission issue: $e');
-      } else {
-        // Các lỗi khác
-        print('Error calling deleteUser Cloud Function: $e');
-      }
-      // Không rethrow để không làm gián đoạn việc xóa trong Firestore
+      print('Error calling deleteUserByUid Cloud Function: $e');
+      return false;
     }
   }
 
@@ -169,17 +232,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     _nameController.dispose();
+    _classCodeController.dispose();
     _bulkQuantityController.dispose();
     _bulkPrefixController.dispose();
     _bulkSuffixController.dispose();
+    _bulkClassCodeController.dispose();
     _filterController.dispose();
     _prefixFilterController.dispose();
     super.dispose();
   }
 
+  /// Kiểm tra mã lớp có tồn tại không
+  Future<bool> _checkClassCode(String classCode) async {
+    if (classCode.isEmpty) return true; // Nếu để trống thì không cần kiểm tra
+    
+    try {
+      final doc = await _firestore.collection('classes').doc(classCode).get();
+      return doc.exists;
+    } catch (e) {
+      print('Lỗi kiểm tra mã lớp: $e');
+      return false;
+    }
+  }
+
   /// Tạo mật khẩu random 12 ký tự (chữ và số)
   Future<void> _createUser() async {
-    if (_emailController.text.trim().isEmpty) {
+    final email = _emailController.text.trim();
+    final classCode = _selectedClassInDialog ?? '';
+
+    if (email.isEmpty) {
       setState(() {
         _errorMessage = 'Vui lòng nhập email';
       });
@@ -192,46 +273,74 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _successMessage = null;
     });
 
-    final email = _emailController.text.trim();
+    // Bỏ qua việc check mã lớp, chỉ lưu trực tiếp
     
     try {
+      // Lưu thông tin admin hiện tại
+      final currentAdmin = FirebaseAuth.instance.currentUser;
+      if (currentAdmin == null) {
+        throw Exception('Admin chưa đăng nhập');
+      }
+      final adminEmail = currentAdmin.email;
+      
       // Tự động tạo mật khẩu ngẫu nhiên
       final password = _generateRandomPasswordString();
 
-      // Tạo user trong Firebase Auth
-      final userCredential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
+      // GIẢI PHÁP: Tạo một Firebase App instance thứ 2 để tạo user
+      // mà không ảnh hưởng đến session admin hiện tại
+      final secondaryApp = await Firebase.initializeApp(
+        name: 'Secondary',
+        options: Firebase.app().options,
       );
+      
+      try {
+        // Tạo user bằng instance thứ 2
+        final userCredential = await FirebaseAuth.instanceFor(app: secondaryApp)
+            .createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
 
-      // Lưu thông tin user vào Firestore (chưa có thông tin cá nhân, người dùng sẽ nhập sau)
-      await _firestore.collection('users').doc(userCredential.user?.uid).set({
-        'userId': userCredential.user?.uid,
-        'userName': null, // Người dùng sẽ nhập sau khi đăng nhập
-        'userEmail': email,
-        'password': password, // Lưu mật khẩu để hiển thị cho admin
-        'createdAt': FieldValue.serverTimestamp(),
-        'createdBy': {
-          'userId': FirebaseAuth.instance.currentUser?.uid,
-          'userEmail': FirebaseAuth.instance.currentUser?.email,
-        },
-      });
+        // Lưu thông tin user vào Firestore (dùng instance chính)
+        await _firestore.collection('users').doc(userCredential.user?.uid).set({
+          'userId': userCredential.user?.uid,
+          'userName': null,
+          'userEmail': email,
+          'password': password,
+          'classCode': classCode.isNotEmpty ? classCode : null,
+          'createdAt': FieldValue.serverTimestamp(),
+          'createdBy': {
+            'userId': currentAdmin.uid,
+            'userEmail': adminEmail,
+          },
+        });
 
-      setState(() {
-        _successMessage = 'Tạo tài khoản thành công cho $email. Mật khẩu đã được tự động tạo.';
-        _emailController.clear();
-        _isLoading = false;
-      });
+        // Đăng xuất user mới khỏi instance thứ 2
+        await FirebaseAuth.instanceFor(app: secondaryApp).signOut();
+        
+        // Xóa app thứ 2
+        await secondaryApp.delete();
 
-      // Ẩn thông báo sau 3 giây
-      Future.delayed(const Duration(seconds: 3), () {
-        if (mounted) {
-          setState(() {
-            _successMessage = null;
-          });
-        }
-      });
+        setState(() {
+          _successMessage = 'Tạo tài khoản thành công!\nEmail: $email\nMật khẩu: $password${classCode.isNotEmpty ? '\nMã lớp: $classCode' : ''}';
+          _emailController.clear();
+          _classCodeController.clear();
+          _isLoading = false;
+        });
+
+        // Ẩn thông báo sau 8 giây (để admin copy mật khẩu)
+        Future.delayed(const Duration(seconds: 8), () {
+          if (mounted) {
+            setState(() {
+              _successMessage = null;
+            });
+          }
+        });
+      } catch (e) {
+        // Đảm bảo xóa secondary app nếu có lỗi
+        await secondaryApp.delete();
+        rethrow;
+      }
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
         setState(() {
@@ -278,6 +387,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final quantity = int.tryParse(_bulkQuantityController.text) ?? 0;
     final prefix = _bulkPrefixController.text.trim();
     final suffix = _bulkSuffixController.text.trim();
+    final classCode = _selectedClassInDialog ?? '';
+    // Xóa dòng gán classCode cũ từ controller vì đã dùng Dropdown
 
     // Validation
     if (_bulkQuantityController.text.isEmpty ||
@@ -296,11 +407,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       return;
     }
 
-    setState(() {
-      _isBulkLoading = true;
-      _bulkErrorMessage = null;
-      _bulkSuccessMessage = null;
-    });
+    // Bỏ qua việc check mã lớp, chỉ lưu trực tiếp
+
+    final currentAdmin = FirebaseAuth.instance.currentUser;
+    if (currentAdmin == null) return;
+    final adminEmail = currentAdmin.email;
 
     int successCount = 0;
     int skipCount = 0; // Số tài khoản bị bỏ qua (trùng email)
@@ -314,35 +425,47 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           final email = '$prefix$i@$suffix';
           final password = _generateRandomPasswordString();
 
-          // Tạo user trong Firebase Auth
-          final userCredential =
-              await FirebaseAuth.instance.createUserWithEmailAndPassword(
-            email: email,
-            password: password,
+          // GIẢI PHÁP: Tạo một Firebase App instance riêng cho mỗi user (hoặc dùng 1 instance duy nhất cho batch)
+          // Để đơn giản và an toàn, ta dùng 1 instance phụ cho toàn bộ batch
+          final secondaryApp = await Firebase.initializeApp(
+            name: 'BulkApp_$i', // Phải có tên duy nhất nếu loop nhanh
+            options: Firebase.app().options,
           );
 
-          // Lưu thông tin user vào Firestore
-          await _firestore.collection('users').doc(userCredential.user?.uid).set({
-            'userId': userCredential.user?.uid,
-            'userName': email.split('@')[0],
-            'userEmail': email,
-            'password': password, // Lưu mật khẩu để hiển thị cho admin
-            'createdAt': FieldValue.serverTimestamp(),
-            'createdBy': {
-              'userId': FirebaseAuth.instance.currentUser?.uid,
-              'userEmail': FirebaseAuth.instance.currentUser?.email,
-            },
-          });
+          try {
+            // Tạo user trong Firebase Auth (dùng secondary app)
+            final userCredential = await FirebaseAuth.instanceFor(app: secondaryApp)
+                .createUserWithEmailAndPassword(
+              email: email,
+              password: password,
+            );
 
-          successCount++;
+            // Lưu thông tin user vào Firestore (dùng instance chính)
+            await _firestore.collection('users').doc(userCredential.user?.uid).set({
+              'userId': userCredential.user?.uid,
+              'userName': email.split('@')[0],
+              'userEmail': email,
+              'password': password,
+              'classCode': classCode.isNotEmpty ? classCode : null,
+              'createdAt': FieldValue.serverTimestamp(),
+              'createdBy': {
+                'userId': currentAdmin.uid,
+                'userEmail': adminEmail,
+              },
+            });
+
+            await secondaryApp.delete();
+            successCount++;
+          } catch (e) {
+            await secondaryApp.delete();
+            rethrow;
+          }
         } on FirebaseAuthException catch (e) {
           final email = '$prefix$i@$suffix';
           if (e.code == 'email-already-in-use') {
-            // Email đã tồn tại - bỏ qua và tiếp tục
             skipCount++;
             skippedEmails.add(email);
           } else {
-            // Lỗi khác
             failCount++;
             failedEmails.add('$email: ${_getErrorMessage(e.code)}');
           }
@@ -355,6 +478,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     } finally {
       setState(() {
         _isBulkLoading = false;
+        _bulkClassCodeController.clear();
       });
     }
 
@@ -408,184 +532,186 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   void _showCreateUserDialog(BuildContext context) {
     _emailController.clear();
+    _selectedClassInDialog = _classes.isNotEmpty ? _classes.first : null;
     _errorMessage = null;
     _successMessage = null;
     
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Thêm tài khoản mới'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  labelText: 'Email *',
-                  hintText: 'Nhập email',
-                  prefixIcon: const Icon(Icons.email),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Thêm tài khoản mới'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    labelText: 'Email *',
+                    hintText: 'Nhập email',
+                    prefixIcon: const Icon(Icons.email),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Vui lòng nhập email';
-                  }
-                  if (!value.contains('@')) {
-                    return 'Email không hợp lệ';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue[200]!),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedClassInDialog,
+                  decoration: InputDecoration(
+                    labelText: 'Chọn lớp học',
+                    prefixIcon: const Icon(Icons.class_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: '',
+                      child: Text('Không chọn lớp'),
+                    ),
+                    ..._classes.map((c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(c),
+                    )),
+                  ],
+                  onChanged: (value) {
+                    setDialogState(() {
+                      _selectedClassInDialog = value;
+                    });
+                  },
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Mật khẩu sẽ được tự động tạo. Người dùng sẽ nhập thông tin cá nhân khi đăng nhập lần đầu.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue[900],
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.blue[700], size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Mật khẩu sẽ được tự động tạo. Người dùng sẽ nhập thông tin cá nhân khi đăng nhập lần đầu.',
+                          style: TextStyle(fontSize: 12, color: Colors.blue[900]),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red[300]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline, color: Colors.red[700]),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(color: Colors.red[700]),
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
-              if (_successMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green[50],
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green[300]!),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.green[700]),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _successMessage!,
-                            style: TextStyle(color: Colors.green[700]),
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red[300]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline, color: Colors.red[700]),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _errorMessage!,
+                              style: TextStyle(color: Colors.red[700]),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              // Không cần setState ở đây để tránh rebuild danh sách
-            },
-            child: const Text('Hủy'),
-          ),
-                  ElevatedButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () async {
-                    // Đóng dialog ngay lập tức
-                    Navigator.of(dialogContext).pop();
-                    
-                    // Hiển thị loading
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Row(
-                            children: [
-                              SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              ),
-                              SizedBox(width: 16),
-                              Text('Đang tạo tài khoản...'),
-                            ],
+                if (_successMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green[300]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.green[700]),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _successMessage!,
+                              style: TextStyle(color: Colors.green[700]),
+                            ),
                           ),
-                          duration: Duration(seconds: 30),
-                        ),
-                      );
-                    }
-                    
-                    // Tạo user
-                    await _createUser();
-                    
-                    // Ẩn loading và hiển thị kết quả
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      
-                      if (_successMessage != null) {
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: _isLoading
+                  ? null
+                  : () async {
+                      Navigator.of(dialogContext).pop();
+                      if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(_successMessage!),
-                            backgroundColor: Colors.green,
-                            duration: const Duration(seconds: 3),
+                          const SnackBar(
+                            content: Row(
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                ),
+                                SizedBox(width: 16),
+                                Text('Đang tạo tài khoản...'),
+                              ],
+                            ),
+                            duration: Duration(seconds: 30),
                           ),
                         );
-                        setState(() {
-                          _successMessage = null;
-                        });
-                      } else if (_errorMessage != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(_errorMessage!),
-                            backgroundColor: Colors.red,
-                            duration: const Duration(seconds: 3),
-                          ),
-                        );
-                        setState(() {
-                          _errorMessage = null;
-                        });
                       }
-                    }
-                  },
-            child: const Text('Tạo tài khoản'),
-          ),
-        ],
+                      await _createUser();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        if (_successMessage != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(_successMessage!),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                          setState(() { _successMessage = null; });
+                        } else if (_errorMessage != null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(_errorMessage!),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                          setState(() { _errorMessage = null; });
+                        }
+                      }
+                    },
+              child: const Text('Tạo tài khoản'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -645,6 +771,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                   ),
                   onChanged: (_) => setDialogState(() {}),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _selectedClassInDialog,
+                  decoration: InputDecoration(
+                    labelText: 'Chọn lớp học cho cả đoàn',
+                    prefixIcon: const Icon(Icons.class_outlined),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  items: [
+                    const DropdownMenuItem<String>(
+                      value: '',
+                      child: Text('Không chọn lớp'),
+                    ),
+                    ..._classes.map((c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(c),
+                    )),
+                  ],
+                  onChanged: (value) {
+                    setDialogState(() {
+                      _selectedClassInDialog = value;
+                    });
+                  },
                 ),
                 const SizedBox(height: 16),
                 Container(
@@ -795,20 +947,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               duration: const Duration(seconds: 5),
                             ),
                           );
+                          setState(() {
+                            _bulkErrorMessage = null;
+                            _bulkSuccessMessage = null;
+                          });
                         }
-                        
-                        // Reset messages
-                        setState(() {
-                          _bulkErrorMessage = null;
-                          _bulkSuccessMessage = null;
-                        });
                       }
                     },
-              icon: const Icon(Icons.batch_prediction),
-              label: const Text('Tạo hàng loạt'),
-            ),
-          ],
-        ),
+                icon: const Icon(Icons.batch_prediction),
+                label: const Text('Tạo hàng loạt'),
+              ),
+            ],
+          ),
       ),
     );
   }
@@ -895,22 +1045,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       await _firestore.collection('users').doc(userId).delete();
 
       // Thử xóa user khỏi Firebase Auth thông qua Cloud Function
-      // Nếu không có Cloud Function, user vẫn còn trong Auth và cần xóa thủ công
-      try {
-        await _deleteUserFromAuth(userId);
-      } catch (authError) {
-        print('Warning: Could not delete user from Auth: $authError');
-        // Vẫn tiếp tục vì đã xóa khỏi Firestore thành công
-      }
+      final authDeleted = await _deleteUserFromAuth(userId);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Đã xóa tài khoản $email khỏi Firestore'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        if (authDeleted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đã xóa tài khoản $email thành công (Firestore + Auth)'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đã xóa $email khỏi Firestore, nhưng KHÔNG XÓA ĐƯỢC khỏi Firebase Auth. Vui lòng kiểm tra Cloud Function hoặc quyền admin.'),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -974,6 +1128,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     int successCount = 0;
     int failCount = 0;
+    int authFailCount = 0; // Số tài khoản xóa khỏi Firestore nhưng không xóa được khỏi Auth
     final List<String> failedUserIds = [];
 
     // Lấy danh sách userIds để xóa (copy để tránh modify trong khi iterate)
@@ -998,11 +1153,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             await _firestore.collection('users').doc(userId).delete();
             
             // Thử xóa user khỏi Firebase Auth
-            try {
-              await _deleteUserFromAuth(userId);
-            } catch (authError) {
-              print('Warning: Could not delete user $userId from Auth: $authError');
-              // Vẫn tiếp tục vì đã xóa khỏi Firestore thành công
+            final authDeleted = await _deleteUserFromAuth(userId);
+            if (!authDeleted) {
+              authFailCount++;
+              print('Warning: Could not delete user $userId from Auth');
             }
             
             _selectedUserIds.remove(userId);
@@ -1019,16 +1173,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         
         String message = '';
+        Color backgroundColor = Colors.green;
+        
         if (successCount > 0) {
-          message = 'Đã xóa thành công $successCount tài khoản';
+          message = 'Đã xóa thành công $successCount tài khoản khỏi Firestore';
+          if (authFailCount > 0) {
+            message += ', nhưng $authFailCount tài khoản KHÔNG XÓA ĐƯỢC khỏi Firebase Auth';
+            backgroundColor = Colors.orange;
+          }
           if (failCount > 0) {
-            message += '. $failCount tài khoản thất bại';
+            message += '. $failCount tài khoản thất bại hoàn toàn';
+            backgroundColor = Colors.orange;
           }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(message),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 3),
+              backgroundColor: backgroundColor,
+              duration: const Duration(seconds: 5),
             ),
           );
         } else {
@@ -1103,6 +1264,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             ),
                           ),
                         ElevatedButton.icon(
+                          onPressed: _showCreateClassDialog,
+                          icon: const Icon(Icons.add_home_work),
+                          label: const Text('Tạo lớp mới'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blueGrey,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
                           onPressed: () => _showCreateUserDialog(context),
                           icon: const Icon(Icons.person_add),
                           label: const Text('Thêm tài khoản mới'),
@@ -1123,7 +1295,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     const SizedBox(height: 16),
                     // Filter và Copy All
-                    Row(
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         SizedBox(
                           width: 250,
@@ -1154,7 +1329,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             onChanged: (_) => setState(() {}),
                           ),
                         ),
-                        const SizedBox(width: 12),
                         SizedBox(
                           width: 180,
                           child: TextField(
@@ -1184,7 +1358,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             onChanged: (_) => setState(() {}),
                           ),
                         ),
-                        const SizedBox(width: 12),
                         // Date picker - Từ ngày
                         SizedBox(
                           width: 140,
@@ -1240,7 +1413,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
                         // Date picker - Đến ngày
                         SizedBox(
                           width: 140,
@@ -1296,7 +1468,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
                         ElevatedButton.icon(
                           onPressed: _selectedUserIds.isEmpty
                               ? null
@@ -1307,7 +1478,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
                         ),
-                        const SizedBox(width: 8),
                         ElevatedButton.icon(
                           onPressed: _selectedUserIds.isEmpty
                               ? null
@@ -1470,6 +1640,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 ),
                               ),
                               const DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
+                              const DataColumn(label: Text('Mã lớp', style: TextStyle(fontWeight: FontWeight.bold))),
                               const DataColumn(label: Text('Tên', style: TextStyle(fontWeight: FontWeight.bold))),
                               const DataColumn(label: Text('Mật khẩu', style: TextStyle(fontWeight: FontWeight.bold))),
                               const DataColumn(label: Text('Ngày tạo', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -1569,6 +1740,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                           ),
                                         ),
                                       ],
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(
+                                      data['classCode'] as String? ?? '-',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
                                     ),
                                   ),
                                   DataCell(Text(name.isNotEmpty ? name : '-')),
