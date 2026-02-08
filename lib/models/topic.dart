@@ -13,6 +13,8 @@ class Topic {
   String categoryId;
   /// Lớp học (1-12) — chỉ dùng khi categoryId = cat_grade
   int? gradeLevel;
+  /// Mã lớp học cụ thể (VD: 12A1, K8...)
+  String? classCode;
   final List<Vocabulary> words;
   
   // Metadata cho decentralized database
@@ -28,6 +30,7 @@ class Topic {
     this.displayName,
     this.categoryId = CategoryIds.topic,
     this.gradeLevel,
+    this.classCode,
     List<Vocabulary>? words,
     this.createdBy,
     this.createdAt,
@@ -42,6 +45,7 @@ class Topic {
     String? displayName,
     String? categoryId,
     int? gradeLevel,
+    String? classCode,
     List<Vocabulary>? words,
     CreatorMetadata? createdBy,
     DateTime? createdAt,
@@ -55,6 +59,7 @@ class Topic {
       displayName: displayName ?? this.displayName,
       categoryId: categoryId ?? this.categoryId,
       gradeLevel: gradeLevel ?? this.gradeLevel,
+      classCode: classCode ?? this.classCode,
       words: words ?? List.from(this.words),
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
@@ -71,6 +76,7 @@ class Topic {
       'displayName': displayName,
       'categoryId': categoryId,
       'gradeLevel': gradeLevel,
+      'classCode': classCode,
       'words': words.map((w) => w.toJson()).toList(),
       'createdBy': createdBy?.toJson(),
       'createdAt': createdAt?.toIso8601String(),
@@ -87,6 +93,7 @@ class Topic {
       'displayName': displayName,
       'categoryId': categoryId,
       'gradeLevel': gradeLevel,
+      'classCode': classCode,
       'words': words.map((w) => w.toFirestoreJson()).toList(),
       'createdBy': createdBy?.toJson(),
       'createdAt': createdAt,
@@ -103,6 +110,7 @@ class Topic {
       displayName: json['displayName'] as String?,
       categoryId: json['categoryId'] as String? ?? CategoryIds.topic,
       gradeLevel: json['gradeLevel'] as int?,
+      classCode: json['classCode'] as String?,
       words: (json['words'] as List<dynamic>?)
               ?.map((w) => Vocabulary.fromJson(w as Map<String, dynamic>))
               .toList() ??
@@ -137,6 +145,7 @@ class Topic {
       displayName: json['displayName'] as String?,
       categoryId: json['categoryId'] as String? ?? CategoryIds.topic,
       gradeLevel: json['gradeLevel'] as int?,
+      classCode: json['classCode'] as String?,
       words: (json['words'] as List<dynamic>?)
               ?.map((w) => Vocabulary.fromFirestore(w as Map<String, dynamic>))
               .toList() ??

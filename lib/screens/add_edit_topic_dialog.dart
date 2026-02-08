@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import '../data/categories.dart';
 import '../models/topic.dart';
 import '../styles/app_buttons.dart';
+import '../services/firebase_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/vocab_provider.dart';
 
 class AddEditTopicDialog extends StatefulWidget {
   final Topic topic;
@@ -19,6 +22,9 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
   late TextEditingController _descController;
   late String _selectedCategoryId;
   int? _selectedGradeLevel;
+  String? _selectedClassCode;
+  List<String> _classes = [];
+  final _firebaseService = FirebaseService();
 
   @override
   void initState() {
@@ -27,6 +33,18 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
     _descController = TextEditingController(text: widget.topic.description ?? '');
     _selectedCategoryId = widget.topic.categoryId;
     _selectedGradeLevel = widget.topic.gradeLevel;
+    _selectedClassCode = widget.topic.classCode;
+    _loadClasses();
+  }
+
+  Future<void> _loadClasses() async {
+    _firebaseService.getAvailableClassesStream().first.then((classes) {
+      if (mounted) {
+        setState(() {
+          _classes = classes;
+        });
+      }
+    });
   }
 
   @override
@@ -87,6 +105,7 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                       gradeLevel: _selectedCategoryId == CategoryIds.grade
                           ? _selectedGradeLevel
                           : null,
+                      classCode: _selectedClassCode,
                     ),
                   );
                 },
@@ -152,12 +171,64 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                       }
                     },
                   ),
+                  SizedBox(height: spacing),
+                  Consumer<VocabProvider>(
+                    builder: (context, provider, _) {
+                      if (provider.isAdmin) {
+                        return DropdownButtonFormField<String?>(
+                          value: _selectedClassCode,
+                          decoration: InputDecoration(
+                            labelText: 'Giao cho lớp (Tất cả nếu trống)',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('Tất cả các lớp'),
+                            ),
+                            ..._classes.map((c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text('Lớp $c'),
+                                )),
+                          ],
+                          onChanged: (value) {
+                            setState(() => _selectedClassCode = value);
+                          },
+                        );
+                      } else {
+                        // Nếu là user thường, khóa mã lớp theo profile của họ
+                        _selectedClassCode = provider.userClassCode;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey[300]!),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.class_outlined,
+                                  size: 20, color: Colors.grey),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Lớp học: ${provider.userClassCode ?? "Chung"}',
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    },
+                  ),
                   if (_selectedCategoryId == CategoryIds.grade) ...[
                     SizedBox(height: spacing),
                     DropdownButtonFormField<int>(
                       value: _selectedGradeLevel,
                       decoration: InputDecoration(
-                        labelText: 'Lớp',
+                        labelText: 'Cấp độ lớp (1-12)',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

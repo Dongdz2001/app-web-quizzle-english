@@ -235,6 +235,7 @@ class CategoryTopicsScreen extends StatelessWidget {
                 if (!kIsWeb) {
                   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
                 }
+                final provider = context.read<VocabProvider>();
                 final result = await showDialog<Topic>(
                   context: context,
                   builder: (_) => AddEditTopicDialog(
@@ -244,6 +245,7 @@ class CategoryTopicsScreen extends StatelessWidget {
                       description: '',
                       categoryId: categoryId!,
                       gradeLevel: gradeLevel,
+                      classCode: provider.userClassCode,
                     ),
                   ),
                 );

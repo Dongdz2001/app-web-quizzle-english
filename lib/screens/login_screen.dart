@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -56,17 +57,38 @@ class _LoginScreenState extends State<LoginScreen> {
         });
         return;
       }
+      // Kiểm tra xem có phải admin không
+      final isAdmin = email.toLowerCase() == adminEmail.toLowerCase();
+
+      // KIỂM TRA TRẠNG THÁI TRƯỚC: Nếu không phải admin, kiểm tra isLogin bằng email trên Firestore
+      if (!isAdmin) {
+        final userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('userEmail', isEqualTo: email)
+            .limit(1)
+            .get();
+
+        if (userQuery.docs.isNotEmpty) {
+          final userData = userQuery.docs.first.data();
+          final isLogin = userData['isLogin'] ?? true;
+
+          if (!isLogin) {
+            setState(() {
+              _errorMessage = 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.';
+              _isLoading = false;
+            });
+            return;
+          }
+        }
+      }
 
       // Đăng nhập với Firebase Auth
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       if (!mounted) return;
-
-      // Kiểm tra xem có phải admin không
-      final isAdmin = email.toLowerCase() == adminEmail.toLowerCase();
 
       // Load data vào provider
       try {
@@ -331,21 +353,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Anonymous login button (chỉ hiện trên web và không phải admin login)
-                  if (isWeb && !widget.isAdminLogin)
-                    OutlinedButton(
-                      onPressed: _isLoading ? null : _handleAnonymousLogin,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Tiếp tục không đăng nhập',
-                        style: TextStyle(fontSize: 14),
-                      ),
-                    ),
                 ],
               ),
             ),

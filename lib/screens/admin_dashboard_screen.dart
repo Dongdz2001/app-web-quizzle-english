@@ -309,6 +309,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           'password': password,
           'classCode': classCode.isNotEmpty ? classCode : null,
           'createdAt': FieldValue.serverTimestamp(),
+          'isLogin': true,
           'createdBy': {
             'userId': currentAdmin.uid,
             'userEmail': adminEmail,
@@ -448,6 +449,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               'password': password,
               'classCode': classCode.isNotEmpty ? classCode : null,
               'createdAt': FieldValue.serverTimestamp(),
+              'isLogin': true,
               'createdBy': {
                 'userId': currentAdmin.uid,
                 'userEmail': adminEmail,
@@ -1078,27 +1080,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  Future<void> _deleteMultipleUsers(BuildContext context) async {
+  Future<void> _toggleMultipleUsersStatus(bool disable) async {
     if (_selectedUserIds.isEmpty) return;
 
-    // Xác nhận trước khi xóa
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Xác nhận xóa'),
-        content: Text('Bạn có chắc chắn muốn xóa ${_selectedUserIds.length} tài khoản đã chọn?'),
+        title: Text(disable ? 'Vô hiệu hóa tài khoản' : 'Kích hoạt tài khoản'),
+        content: Text('Bạn có chắc chắn muốn ${disable ? "vô hiệu hóa" : "kích hoạt"} ${_selectedUserIds.length} tài khoản đã chọn?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Hủy'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: disable ? Colors.orange : Colors.green,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Xóa'),
+            child: Text(disable ? 'Vô hiệu hóa' : 'Kích hoạt'),
           ),
         ],
       ),
@@ -1106,104 +1107,65 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     if (confirm != true) return;
 
-    // Hiển thị loading
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-              ),
-              SizedBox(width: 16),
-              Text('Đang xóa tài khoản...'),
-            ],
-          ),
-          duration: Duration(seconds: 30),
+        SnackBar(
+          content: Text('Đang ${disable ? "vô hiệu hóa" : "kích hoạt"} tài khoản...'),
         ),
       );
     }
 
-    int successCount = 0;
-    int failCount = 0;
-    int authFailCount = 0; // Số tài khoản xóa khỏi Firestore nhưng không xóa được khỏi Auth
-    final List<String> failedUserIds = [];
-
-    // Lấy danh sách userIds để xóa (copy để tránh modify trong khi iterate)
-    final userIdsToDelete = List<String>.from(_selectedUserIds);
-
     try {
-      for (var userId in userIdsToDelete) {
-        try {
-          // Lấy thông tin user để kiểm tra admin
-          final doc = await _firestore.collection('users').doc(userId).get();
-          if (doc.exists) {
-            final data = doc.data() as Map<String, dynamic>;
-            final email = data['userEmail'] as String? ?? '';
-            
-            // Không cho xóa admin
-            if (email == 'adminchi@gmail.com') {
-              failCount++;
-              continue;
-            }
-
-            // Xóa user trong Firestore
-            await _firestore.collection('users').doc(userId).delete();
-            
-            // Thử xóa user khỏi Firebase Auth
-            final authDeleted = await _deleteUserFromAuth(userId);
-            if (!authDeleted) {
-              authFailCount++;
-              print('Warning: Could not delete user $userId from Auth');
-            }
-            
-            _selectedUserIds.remove(userId);
-            successCount++;
-          }
-        } catch (e) {
-          failCount++;
-          failedUserIds.add(userId);
-        }
+      final batch = _firestore.batch();
+      for (var userId in _selectedUserIds) {
+        batch.update(_firestore.collection('users').doc(userId), {
+          'isLogin': !disable,
+        });
       }
-    } finally {
-      // Ẩn loading và hiển thị kết quả
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        
-        String message = '';
-        Color backgroundColor = Colors.green;
-        
-        if (successCount > 0) {
-          message = 'Đã xóa thành công $successCount tài khoản khỏi Firestore';
-          if (authFailCount > 0) {
-            message += ', nhưng $authFailCount tài khoản KHÔNG XÓA ĐƯỢC khỏi Firebase Auth';
-            backgroundColor = Colors.orange;
-          }
-          if (failCount > 0) {
-            message += '. $failCount tài khoản thất bại hoàn toàn';
-            backgroundColor = Colors.orange;
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: backgroundColor,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Không thể xóa tài khoản. ${failCount > 0 ? "$failCount thất bại" : ""}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
+      await batch.commit();
 
-        // Update UI
-        setState(() {});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã ${disable ? "vô hiệu hóa" : "kích hoạt"} ${_selectedUserIds.length} tài khoản thành công'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {
+          _selectedUserIds.clear();
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Có lỗi xảy ra khi cập nhật trạng thái'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleUserStatus(String userId, bool currentStatus) async {
+    try {
+      await _firestore.collection('users').doc(userId).update({
+        'isLogin': !currentStatus,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã ${!currentStatus ? "kích hoạt" : "vô hiệu hóa"} tài khoản thành công'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lỗi cập nhật trạng thái'), backgroundColor: Colors.red),
+        );
       }
     }
   }
@@ -1591,12 +1553,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ElevatedButton.icon(
                           onPressed: _selectedUserIds.isEmpty
                               ? null
-                              : () => _deleteMultipleUsers(context),
-                          icon: const Icon(Icons.delete_sweep),
-                          label: const Text('Xóa nhiều'),
+                              : () => _toggleMultipleUsersStatus(true),
+                          icon: const Icon(Icons.block),
+                          label: const Text('Vô hiệu hóa'),
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            backgroundColor: Colors.red,
+                            backgroundColor: Colors.orange,
                             foregroundColor: Colors.white,
                           ),
                         ),
@@ -1766,6 +1728,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               const DataColumn(label: Text('Tên', style: TextStyle(fontWeight: FontWeight.bold))),
                               const DataColumn(label: Text('Mật khẩu', style: TextStyle(fontWeight: FontWeight.bold))),
                               const DataColumn(label: Text('Ngày tạo', style: TextStyle(fontWeight: FontWeight.bold))),
+                              const DataColumn(label: Text('Trạng thái', style: TextStyle(fontWeight: FontWeight.bold))),
                               const DataColumn(label: Text('Thao tác', style: TextStyle(fontWeight: FontWeight.bold))),
                             ],
                             rows: filteredDocs.map((doc) {
@@ -1905,12 +1868,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     ),
                                   ),
                                   DataCell(
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: (data['isLogin'] ?? true) ? Colors.green[50] : Colors.red[50],
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: (data['isLogin'] ?? true) ? Colors.green[300]! : Colors.red[300]!,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        (data['isLogin'] ?? true) ? 'Hoạt động' : 'Đã khóa',
+                                        style: TextStyle(
+                                          color: (data['isLogin'] ?? true) ? Colors.green[700] : Colors.red[700],
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
                                     isAdmin
                                         ? const Text('-', style: TextStyle(color: Colors.grey))
-                                        : IconButton(
-                                            icon: const Icon(Icons.delete, color: Colors.red),
-                                            onPressed: () => _deleteUser(userId, email),
-                                            tooltip: 'Xóa tài khoản',
+                                        : Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: Icon(
+                                                  (data['isLogin'] ?? true) ? Icons.block : Icons.check_circle_outline,
+                                                  color: (data['isLogin'] ?? true) ? Colors.orange : Colors.green,
+                                                ),
+                                                onPressed: () => _toggleUserStatus(userId, data['isLogin'] ?? true),
+                                                tooltip: (data['isLogin'] ?? true) ? 'Vô hiệu hóa' : 'Kích hoạt',
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.delete, color: Colors.red),
+                                                onPressed: () => _deleteUser(userId, email),
+                                                tooltip: 'Xóa tài khoản',
+                                              ),
+                                            ],
                                           ),
                                   ),
                                 ],

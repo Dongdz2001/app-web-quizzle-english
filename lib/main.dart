@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +11,7 @@ import 'screens/grade_levels_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/learn_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/name_setup_screen.dart';
 import 'screens/practice_screen.dart';
 import 'screens/progress_screen.dart';
 import 'screens/quiz_screen.dart';
@@ -108,11 +110,61 @@ class AuthWrapper extends StatelessWidget {
           final isAdmin = user.email?.toLowerCase() == 'adminchi@gmail.com';
 
           if (isAdmin) {
+            // Cập nhật profile admin vào provider
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Provider.of<VocabProvider>(context, listen: false).setUserProfile(null, true);
+            });
             return const AdminDashboardScreen();
           }
 
-          // User thường -> hiển thị home screen
-          return const HomeScreen();
+          // User thường -> kiểm tra trạng thái isLogin và userName trong Firestore
+          return StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+            builder: (context, userSnapshot) {
+              if (userSnapshot.hasError) {
+                return const LoginScreen();
+              }
+
+              if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                
+                // Cập nhật profile vào provider
+                final classCode = userData['classCode'] as String?;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Provider.of<VocabProvider>(context, listen: false).setUserProfile(classCode, false);
+                });
+
+                // 1. Kiểm tra quyền đăng nhập
+                final isLogin = userData['isLogin'] ?? true;
+                if (!isLogin) {
+                  // Tự động đăng xuất nếu bị vô hiệu hóa
+                  Future.microtask(() => FirebaseAuth.instance.signOut());
+                  return const LoginScreen();
+                }
+
+                // 2. Kiểm tra thông tin tên (User Profile)
+                final userName = userData['userName'] as String?;
+                if (userName == null || userName.trim().isEmpty) {
+                  return NameSetupScreen(uid: user.uid);
+                }
+                
+                // Nếu mọi thứ OK -> Home
+                return const HomeScreen();
+              }
+              
+              // Trong khi chờ snapshot đầu tiên
+              if (userSnapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              // Fallback mặc định
+              return const HomeScreen();
+            },
+          );
         },
       );
     } catch (e) {

@@ -13,11 +13,34 @@ class VocabProvider extends ChangeNotifier {
   List<Topic> _topics = [];
   Map<String, LearningProgress> _progress = {};
   bool _isLoading = true;
+  String? _userClassCode;
+  bool _isAdmin = false;
   StreamSubscription<List<Topic>>? _topicsSubscription;
 
   List<Topic> get topics => _topics;
   Map<String, LearningProgress> get progress => _progress;
   bool get isLoading => _isLoading;
+  String? get userClassCode => _userClassCode;
+  bool get isAdmin => _isAdmin;
+
+  /// Danh sách topic đã được lọc theo quyền hạn và lớp học (Độc lập dữ liệu)
+  List<Topic> get filteredTopics {
+    if (_isAdmin) return _topics; // Admin thấy toàn bộ dữ liệu
+
+    // Nếu user có lớp cụ thể -> CHỈ thấy topic của lớp đó
+    if (_userClassCode != null && _userClassCode!.isNotEmpty) {
+      return _topics.where((t) => t.classCode == _userClassCode).toList();
+    }
+    
+    // Nếu user chưa có lớp (trường hợp hiếm) -> Thấy các topic không gắn mã lớp
+    return _topics.where((t) => t.classCode == null).toList();
+  }
+
+  void setUserProfile(String? classCode, bool isAdmin) {
+    _userClassCode = classCode;
+    _isAdmin = isAdmin;
+    notifyListeners();
+  }
 
   @override
   void dispose() {
@@ -64,16 +87,7 @@ class VocabProvider extends ChangeNotifier {
   /// Thêm topic mới lên Firestore
   Future<void> addTopic(Topic topic) async {
     try {
-      // Tạo topic trên Firestore và nhận lại topic kèm metadata
-      final savedTopic = await _firebaseService.createTopic(topic);
-      
-      _topics.add(savedTopic);
-      _progress[savedTopic.id] = LearningProgress(
-        topicId: savedTopic.id,
-        totalWords: savedTopic.words.length,
-      );
-      
-      notifyListeners();
+      await _firebaseService.createTopic(topic);
     } catch (e) {
       print('Error adding topic: $e');
       rethrow;
@@ -84,13 +98,6 @@ class VocabProvider extends ChangeNotifier {
   Future<void> updateTopic(Topic topic) async {
     try {
       await _firebaseService.updateTopic(topic);
-      
-      final index = _topics.indexWhere((t) => t.id == topic.id);
-      if (index >= 0) {
-        _topics[index] = topic;
-        _progress[topic.id]!.totalWords = topic.words.length;
-        notifyListeners();
-      }
     } catch (e) {
       print('Error updating topic: $e');
       rethrow;
@@ -101,10 +108,6 @@ class VocabProvider extends ChangeNotifier {
   Future<void> deleteTopic(String topicId) async {
     try {
       await _firebaseService.deleteTopic(topicId);
-      
-      _topics.removeWhere((t) => t.id == topicId);
-      _progress.remove(topicId);
-      notifyListeners();
     } catch (e) {
       print('Error deleting topic: $e');
       rethrow;
@@ -121,18 +124,16 @@ class VocabProvider extends ChangeNotifier {
 
   /// Lấy danh sách topic theo nhóm (categoryId).
   List<Topic> getTopicsByCategory(String categoryId) {
-    return _topics.where((t) => t.categoryId == categoryId).toList();
+    return filteredTopics.where((t) => t.categoryId == categoryId).toList();
   }
 
   /// Lấy danh sách topic theo lớp (gradeLevel) — chỉ dùng cho categoryId = cat_grade.
   List<Topic> getTopicsByGradeLevel(int gradeLevel) {
-    return _topics
+    return filteredTopics
         .where((t) => t.categoryId == CategoryIds.grade && t.gradeLevel == gradeLevel)
         .toList();
   }
 
-  /// Thêm từ vựng vào 1 chủ đề.
-  /// Trả về `true` nếu thêm thành công, `false` nếu từ đã tồn tại.
   Future<bool> addWord(String topicId, Vocabulary word) async {
     final topic = getTopic(topicId);
     if (topic == null) return false;
@@ -148,13 +149,7 @@ class VocabProvider extends ChangeNotifier {
     }
 
     try {
-      // Gửi lên Firestore và nhận lại từ có đầy đủ thông tin người tạo (userName)
-      final savedWord = await _firebaseService.addWordToTopic(topicId, word);
-      
-      topic.words.add(savedWord);
-      _progress[topicId]!.totalWords = topic.words.length;
-      notifyListeners();
-
+      await _firebaseService.addWordToTopic(topicId, word);
       return true;
     } catch (e) {
       print('Error adding word: $e');
@@ -162,39 +157,21 @@ class VocabProvider extends ChangeNotifier {
     }
   }
 
-  /// Cập nhật từ vựng
   Future<void> updateWord(String topicId, Vocabulary word) async {
-    final topic = getTopic(topicId);
-    if (topic != null) {
-      final index = topic.words.indexWhere((w) => w.id == word.id);
-      if (index >= 0) {
-        try {
-          await _firebaseService.updateWordInTopic(topicId, word);
-          
-          topic.words[index] = word;
-          notifyListeners();
-        } catch (e) {
-          print('Error updating word: $e');
-          rethrow;
-        }
-      }
+    try {
+      await _firebaseService.updateWordInTopic(topicId, word);
+    } catch (e) {
+      print('Error updating word: $e');
+      rethrow;
     }
   }
 
-  /// Xóa từ vựng
   Future<void> deleteWord(String topicId, String wordId) async {
-    final topic = getTopic(topicId);
-    if (topic != null) {
-      try {
-        await _firebaseService.deleteWordFromTopic(topicId, wordId);
-        
-        topic.words.removeWhere((w) => w.id == wordId);
-        _progress[topicId]!.totalWords = topic.words.length;
-        notifyListeners();
-      } catch (e) {
-        print('Error deleting word: $e');
-        rethrow;
-      }
+    try {
+      await _firebaseService.deleteWordFromTopic(topicId, wordId);
+    } catch (e) {
+      print('Error deleting word: $e');
+      rethrow;
     }
   }
 

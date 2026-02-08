@@ -359,4 +359,13 @@ class FirebaseService {
       rethrow;
     }
   }
+
+  /// Lấy danh sách mã lớp học có sẵn
+  Stream<List<String>> getAvailableClassesStream() {
+    return _firestore.collection('classes').snapshots().map((snapshot) {
+      final classes = snapshot.docs.map((doc) => doc.id).toList();
+      classes.sort();
+      return classes;
+    });
+  }
 }

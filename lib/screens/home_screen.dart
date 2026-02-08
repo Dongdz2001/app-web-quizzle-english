@@ -15,112 +15,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Kiểm tra thông tin người dùng sau khi frame đầu tiên được render
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkUserProfile();
-    });
-  }
-
-  Future<void> _checkUserProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-
-      if (doc.exists) {
-        final data = doc.data();
-        if (data != null && (data['userName'] == null || data['userName'].toString().isEmpty)) {
-          if (mounted) {
-            _showUpdateNameDialog(context, user.uid);
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Lỗi khi kiểm tra profile: $e');
-    }
-  }
-
-  void _showUpdateNameDialog(BuildContext context, String uid) {
-    final controller = TextEditingController();
-    bool isUpdating = false;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false, // Bắt buộc người dùng phải nhập
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Chào mừng bạn!'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Vui lòng cho biết tên của bạn để bắt đầu học nhé:'),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: controller,
-                  decoration: const InputDecoration(
-                    labelText: 'Tên của bạn',
-                    border: OutlineInputBorder(),
-                    hintText: 'Nhập tên...',
-                  ),
-                  autofocus: true,
-                ),
-              ],
-            ),
-            actions: [
-              if (isUpdating)
-                const CircularProgressIndicator()
-              else
-                ElevatedButton(
-                  onPressed: () async {
-                    final name = controller.text.trim();
-                    if (name.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Vui lòng nhập tên')),
-                      );
-                      return;
-                    }
-
-                    setDialogState(() => isUpdating = true);
-
-                    try {
-                      await FirebaseFirestore.instance
-                          .collection('users')
-                          .doc(uid)
-                          .update({'userName': name});
-                      
-                      if (context.mounted) {
-                        Navigator.of(context).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Cập nhật thành công!')),
-                        );
-                      }
-                    } catch (e) {
-                      setDialogState(() => isUpdating = false);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Lỗi: $e')),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Bắt đầu'),
-                ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
   Future<void> _showProfileDialog(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -256,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: kCategories.map((cat) => _CategoryCard(
         category: cat,
         topicCount: cat.id == CategoryIds.grade
-            ? provider.topics.where((t) => t.categoryId == CategoryIds.grade).length
+            ? provider.filteredTopics.where((t) => t.categoryId == CategoryIds.grade).length
             : provider.getTopicsByCategory(cat.id).length,
         onTap: () {
           if (cat.id == CategoryIds.grade) {
@@ -283,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: kCategories.map((cat) => _CategoryCard(
         category: cat,
         topicCount: cat.id == CategoryIds.grade
-            ? provider.topics.where((t) => t.categoryId == CategoryIds.grade).length
+            ? provider.filteredTopics.where((t) => t.categoryId == CategoryIds.grade).length
             : provider.getTopicsByCategory(cat.id).length,
         onTap: () {
           if (cat.id == CategoryIds.grade) {
