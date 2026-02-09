@@ -86,6 +86,34 @@ class CategoryTopicsScreen extends StatelessWidget {
                             'Nhấn + để thêm topic mới',
                             style: TextStyle(color: Colors.grey[600]),
                           ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: () async {
+                              if (!kIsWeb) {
+                                await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+                              }
+                              final result = await showDialog<Topic>(
+                                context: context,
+                                builder: (_) => AddEditTopicDialog(
+                                  topic: Topic(
+                                    id: const Uuid().v4(),
+                                    name: '',
+                                    description: '',
+                                    categoryId: categoryId!,
+                                    gradeLevel: gradeLevel,
+                                  ),
+                                ),
+                              );
+                              if (!kIsWeb) {
+                                SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+                              }
+                              if (result != null && result.name.isNotEmpty) {
+                                provider.addTopic(result);
+                              }
+                            },
+                            icon: const Icon(Icons.add),
+                            label: const Text('Thêm topic'),
+                          ),
                         ],
                       ],
                     ),
@@ -233,7 +261,7 @@ class CategoryTopicsScreen extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: (categoryId == CategoryIds.grade || !provider.isAdmin)
+      floatingActionButton: (!provider.isAdmin || (categoryId == CategoryIds.grade && gradeLevel == null))
           ? null
           : FloatingActionButton(
               onPressed: () async {
