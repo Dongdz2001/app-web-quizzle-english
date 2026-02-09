@@ -35,7 +35,9 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
     super.initState();
     _wordController = TextEditingController(text: widget.word.word);
     _meaningController = TextEditingController(text: widget.word.meaning);
-    _englishDefController = TextEditingController(text: widget.word.englishDefinition ?? '');
+    _englishDefController = TextEditingController(
+      text: widget.word.englishDefinition ?? '',
+    );
     _synonymController = TextEditingController(text: widget.word.synonym ?? '');
     _antonymController = TextEditingController(text: widget.word.antonym ?? '');
     _nounController = TextEditingController(text: widget.word.noun ?? '');
@@ -47,7 +49,8 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
     _vSesController = TextEditingController(text: widget.word.vSes ?? '');
 
     // Khi sửa và đã có dữ liệu tùy chọn → mở sẵn phần thêm thông tin
-    final hasExtra = (widget.word.englishDefinition ?? '').isNotEmpty ||
+    final hasExtra =
+        (widget.word.englishDefinition ?? '').isNotEmpty ||
         (widget.word.synonym ?? '').isNotEmpty ||
         (widget.word.antonym ?? '').isNotEmpty ||
         (widget.word.noun ?? '').isNotEmpty ||
@@ -83,19 +86,20 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
     final screenWidth = screenSize.width;
     final screenHeight = screenSize.height;
     final isMobile = screenWidth < 600;
-    final isLandscape = MediaQuery.orientationOf(context) == Orientation.landscape;
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
     final spacing = isMobile ? 8.0 : 12.0;
 
-    // Kích thước card theo kiểu web React/Ant Design
-    final maxCardWidth = isMobile ? screenWidth - 32 : 520.0;
+    // Trên điện thoại: card rộng bằng màn hình (padding tối thiểu). Web/tablet: giữ max width 520.
+    final maxCardWidth = isMobile ? screenWidth : 520.0;
     final maxCardHeight = isMobile
         ? (isLandscape ? screenHeight * 0.95 : screenHeight * 0.85)
         : screenHeight * 0.8;
 
     return Dialog(
       insetPadding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 16 : 40,
-        vertical: isMobile ? (isLandscape ? 12 : 24) : 32,
+        horizontal: isMobile ? 0 : 40,
+        vertical: isMobile ? (isLandscape ? 8 : 16) : 32,
       ),
       backgroundColor: Colors.transparent,
       child: ConstrainedBox(
@@ -124,43 +128,54 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
               ),
             ],
           ),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.only(
-                top: isMobile ? 4 : 8,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: _buildFormFields(
-                  context,
-                  spacing,
-                  isMobile,
-                  screenWidth,
-                  _showExtraFields,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final contentWidth = constraints.maxWidth;
+              // Luôn giới hạn chiều cao vùng cuộn (mobile + web): trừ chỗ title + footer để không bị overflow.
+              final bodyMaxHeight = constraints.maxHeight.isFinite
+                  ? constraints.maxHeight
+                  : maxCardHeight - 140;
+              return ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: bodyMaxHeight),
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      top: isMobile ? 4 : 8,
+                      bottom: isMobile ? 16 : 24,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: _buildFormFields(
+                        context,
+                        spacing,
+                        isMobile,
+                        contentWidth,
+                        _showExtraFields,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
     );
   }
 
+  /// [contentWidth] Trên mobile là chiều rộng khả dụng của card (từ LayoutBuilder).
   List<Widget> _buildFormFields(
     BuildContext context,
     double spacing,
     bool isMobile,
-    double screenWidth, [
+    double contentWidth, [
     bool showExtra = true,
   ]) {
     final theme = Theme.of(context);
     final primary = theme.colorScheme.primary;
 
-    InputDecoration _fieldDecoration({
-      required String label,
-      String? hint,
-    }) {
+    InputDecoration fieldDecoration({required String label, String? hint}) {
       return InputDecoration(
         labelText: label,
         hintText: hint,
@@ -176,10 +191,7 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(isMobile ? 12 : 14),
-          borderSide: BorderSide(
-            color: primary,
-            width: 1.6,
-          ),
+          borderSide: BorderSide(color: primary, width: 1.6),
         ),
         contentPadding: EdgeInsets.symmetric(
           horizontal: 14,
@@ -194,7 +206,7 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
         enableSuggestions: false,
         autocorrect: false,
         spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-        decoration: _fieldDecoration(
+        decoration: fieldDecoration(
           label: 'Word (Từ tiếng Anh) *',
           hint: isMobile ? 'VD: mother' : 'VD: mother, career...',
         ),
@@ -205,8 +217,9 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
         enableSuggestions: false,
         autocorrect: false,
         spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-        decoration: _fieldDecoration(
-          label: 'Meaning (Nghĩa tiếng Việt)', // Bỏ bắt buộc nhập meaning theo yêu cầu mới là chỉ bắt buộc Word
+        decoration: fieldDecoration(
+          label:
+              'Meaning (Nghĩa tiếng Việt)', // Bỏ bắt buộc nhập meaning theo yêu cầu mới là chỉ bắt buộc Word
           hint: isMobile ? 'VD: mẹ' : 'VD: mẹ, gia đình, sự nghiệp...',
         ),
       ),
@@ -218,8 +231,18 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
       fields.add(
         TextButton.icon(
           onPressed: () => setState(() => _showExtraFields = true),
-          icon: Icon(Icons.add_circle_outline, size: 18, color: Theme.of(context).colorScheme.primary),
-          label: Text('Thêm thông tin (tùy chọn)', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.primary)),
+          icon: Icon(
+            Icons.add_circle_outline,
+            size: 18,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          label: Text(
+            'Thêm thông tin (tùy chọn)',
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
         ),
       );
       return fields;
@@ -232,126 +255,149 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
         enableSuggestions: false,
         autocorrect: false,
         spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-        decoration: _fieldDecoration(
+        decoration: fieldDecoration(
           label: 'Nhập phiên âm (Tùy chọn)',
           hint: isMobile ? '' : 'VD: /twɪn/, phiên âm IPA...',
         ),
       ),
       SizedBox(height: spacing),
-      Text('Các loại từ (Tùy chọn)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+      Text(
+        'Các loại từ (Tùy chọn)',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[600],
+        ),
+      ),
       const SizedBox(height: 4),
       Wrap(
         spacing: spacing,
         runSpacing: spacing,
         children: [
           SizedBox(
-            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            width: isMobile ? contentWidth : 230,
             child: TextField(
               controller: _nounController,
               enableSuggestions: false,
               autocorrect: false,
               spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: _fieldDecoration(label: 'Danh từ'),
+              decoration: fieldDecoration(label: 'Danh từ'),
             ),
           ),
           SizedBox(
-            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            width: isMobile ? contentWidth : 230,
             child: TextField(
               controller: _verbController,
               enableSuggestions: false,
               autocorrect: false,
               spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: _fieldDecoration(label: 'Động từ'),
+              decoration: fieldDecoration(label: 'Động từ'),
             ),
           ),
           SizedBox(
-            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            width: isMobile ? contentWidth : 230,
             child: TextField(
               controller: _adjController,
               enableSuggestions: false,
               autocorrect: false,
               spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: _fieldDecoration(label: 'Tính từ'),
+              decoration: fieldDecoration(label: 'Tính từ'),
             ),
           ),
           SizedBox(
-            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            width: isMobile ? contentWidth : 230,
             child: TextField(
               controller: _advController,
               enableSuggestions: false,
               autocorrect: false,
               spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: _fieldDecoration(label: 'Trạng từ'),
+              decoration: fieldDecoration(label: 'Trạng từ'),
             ),
           ),
         ],
       ),
       SizedBox(height: spacing),
-      Text('Dạng của động từ (Tùy chọn)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+      Text(
+        'Dạng của động từ (Tùy chọn)',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[600],
+        ),
+      ),
       const SizedBox(height: 4),
       Wrap(
         spacing: spacing,
         runSpacing: spacing,
         children: [
           SizedBox(
-            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            width: isMobile ? contentWidth : 230,
             child: TextField(
               controller: _vEdController,
               enableSuggestions: false,
               autocorrect: false,
               spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: _fieldDecoration(label: 'V-ed'),
+              decoration: fieldDecoration(label: 'V-ed'),
             ),
           ),
           SizedBox(
-            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            width: isMobile ? contentWidth : 230,
             child: TextField(
               controller: _vIngController,
               enableSuggestions: false,
               autocorrect: false,
               spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: _fieldDecoration(label: 'V-ing'),
+              decoration: fieldDecoration(label: 'V-ing'),
             ),
           ),
           SizedBox(
-            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            width: isMobile ? contentWidth : 230,
             child: TextField(
               controller: _vSesController,
               enableSuggestions: false,
               autocorrect: false,
               spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: _fieldDecoration(label: 'V-s/es'),
+              decoration: fieldDecoration(label: 'V-s/es'),
             ),
           ),
         ],
       ),
       SizedBox(height: spacing),
+      Text(
+        'Nhóm từ (Tùy chọn)',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Colors.grey[600],
+        ),
+      ),
+      const SizedBox(height: 4),
       Wrap(
         spacing: spacing,
         runSpacing: spacing,
         children: [
           SizedBox(
-            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            width: isMobile ? contentWidth : 230,
             child: TextField(
               controller: _synonymController,
               enableSuggestions: false,
               autocorrect: false,
               spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: _fieldDecoration(
-                label: isMobile ? 'Synonym' : 'Synonym (Từ đồng nghĩa)',
+              decoration: fieldDecoration(
+                label: isMobile ? 'Từ đồng nghĩa' : 'Synonym (Từ đồng nghĩa)',
                 hint: isMobile ? '' : 'VD: mom, household...',
               ),
             ),
           ),
           SizedBox(
-            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            width: isMobile ? contentWidth : 230,
             child: TextField(
               controller: _antonymController,
               enableSuggestions: false,
               autocorrect: false,
               spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: _fieldDecoration(
-                label: isMobile ? 'Antonym' : 'Antonym (Từ trái nghĩa)',
+              decoration: fieldDecoration(
+                label: isMobile ? 'Từ trái nghĩa' : 'Antonym (Từ trái nghĩa)',
                 hint: isMobile ? '' : 'VD: father, children...',
               ),
             ),
@@ -365,10 +411,11 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
   void _onSave() {
     final word = _wordController.text.trim();
     final meaning = _meaningController.text.trim();
-    if (word.isEmpty) { // Chỉ bắt buộc nhập Word
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập Word')),
-      );
+    if (word.isEmpty) {
+      // Chỉ bắt buộc nhập Word
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Vui lòng nhập Word')));
       return;
     }
     Navigator.pop(
@@ -377,13 +424,27 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
         word: word,
         meaning: meaning,
         wordForm: '',
-        noun: _nounController.text.trim().isEmpty ? null : _nounController.text.trim(),
-        verb: _verbController.text.trim().isEmpty ? null : _verbController.text.trim(),
-        adjective: _adjController.text.trim().isEmpty ? null : _adjController.text.trim(),
-        adverb: _advController.text.trim().isEmpty ? null : _advController.text.trim(),
-        vEd: _vEdController.text.trim().isEmpty ? null : _vEdController.text.trim(),
-        vIng: _vIngController.text.trim().isEmpty ? null : _vIngController.text.trim(),
-        vSes: _vSesController.text.trim().isEmpty ? null : _vSesController.text.trim(),
+        noun: _nounController.text.trim().isEmpty
+            ? null
+            : _nounController.text.trim(),
+        verb: _verbController.text.trim().isEmpty
+            ? null
+            : _verbController.text.trim(),
+        adjective: _adjController.text.trim().isEmpty
+            ? null
+            : _adjController.text.trim(),
+        adverb: _advController.text.trim().isEmpty
+            ? null
+            : _advController.text.trim(),
+        vEd: _vEdController.text.trim().isEmpty
+            ? null
+            : _vEdController.text.trim(),
+        vIng: _vIngController.text.trim().isEmpty
+            ? null
+            : _vIngController.text.trim(),
+        vSes: _vSesController.text.trim().isEmpty
+            ? null
+            : _vSesController.text.trim(),
         englishDefinition: _englishDefController.text.trim().isEmpty
             ? null
             : _englishDefController.text.trim(),
