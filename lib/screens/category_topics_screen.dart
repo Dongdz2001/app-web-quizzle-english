@@ -39,16 +39,17 @@ class CategoryTopicsScreen extends StatelessWidget {
       orElse: () => kCategories.first,
     );
 
-    return Scaffold(
+    return Consumer<VocabProvider>(
+      builder: (context, provider, _) => Scaffold(
       appBar: AppBar(
-        title: Text(gradeLevel != null ? 'Lớp $gradeLevel' : category.name),
+        title: Text(category.name),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Consumer<VocabProvider>(
-        builder: (context, provider, _) {
+      body: Builder(
+        builder: (context) {
           if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -79,11 +80,13 @@ class CategoryTopicsScreen extends StatelessWidget {
                           'Chưa có topic nào',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Nhấn + để thêm topic mới',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
+                        if (provider.isAdmin) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Nhấn + để thêm topic mới',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -148,7 +151,8 @@ class CategoryTopicsScreen extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       subtitle: subtitle,
-                      trailing: PopupMenuButton<String>(
+                      trailing: provider.isAdmin
+                          ? PopupMenuButton<String>(
                         onSelected: (value) async {
                           if (value == 'edit') {
                             if (!kIsWeb) {
@@ -214,7 +218,8 @@ class CategoryTopicsScreen extends StatelessWidget {
                             ),
                           ),
                         ],
-                      ),
+                      )
+                          : null,
                       onTap: () => Navigator.pushNamed(
                         context,
                         '/topic',
@@ -228,14 +233,13 @@ class CategoryTopicsScreen extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: categoryId == CategoryIds.grade && gradeLevel == null
+      floatingActionButton: (categoryId == CategoryIds.grade || !provider.isAdmin)
           ? null
           : FloatingActionButton(
               onPressed: () async {
                 if (!kIsWeb) {
                   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
                 }
-                final provider = context.read<VocabProvider>();
                 final result = await showDialog<Topic>(
                   context: context,
                   builder: (_) => AddEditTopicDialog(
@@ -245,7 +249,6 @@ class CategoryTopicsScreen extends StatelessWidget {
                       description: '',
                       categoryId: categoryId!,
                       gradeLevel: gradeLevel,
-                      classCode: provider.userClassCode,
                     ),
                   ),
                 );
@@ -258,6 +261,7 @@ class CategoryTopicsScreen extends StatelessWidget {
               },
               child: const Icon(Icons.add),
             ),
+      ),
     );
   }
 

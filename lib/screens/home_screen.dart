@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -21,18 +22,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => FutureBuilder<DocumentSnapshot>(
+      builder: (dialogContext) => FutureBuilder<DocumentSnapshot>(
         future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
         builder: (context, snapshot) {
           String userName = 'Đang tải...';
           String email = user.email ?? 'Không có email';
+          String? classCode;
 
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>?;
-            userName = data?['userName'] ?? 'Chưa cập nhật';
+            userName = data?['userName'] as String? ?? 'Chưa cập nhật';
+            classCode = data?['classCode'] as String?;
           } else if (snapshot.hasError) {
             userName = 'Lỗi khi tải';
           }
+
+          final classCodeDisplay = classCode?.isNotEmpty == true ? classCode! : 'Chưa có';
 
           return AlertDialog(
             title: const Row(
@@ -42,20 +47,58 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text('Thông tin tài khoản'),
               ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Họ và tên:', style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(userName),
-                const SizedBox(height: 12),
-                const Text('Email:', style: TextStyle(fontWeight: FontWeight.bold)),
-                Text(email),
-              ],
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text('Họ và tên:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(userName)),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 20),
+                        tooltip: 'Sửa họ và tên',
+                        onPressed: () => _showEditNameDialog(dialogContext, user.uid, userName),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('Email:', style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text(email),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Text('Mã lớp:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(classCodeDisplay)),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 20),
+                        tooltip: 'Sao chép mã lớp',
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: classCode ?? ''));
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Đã sao chép mã lớp')),
+                            );
+                          }
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(dialogContext).pop(),
                 child: const Text('Đóng'),
               ),
             ],
@@ -63,6 +106,52 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _showEditNameDialog(BuildContext context, String uid, String currentName) async {
+    final controller = TextEditingController(text: currentName);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sửa họ và tên'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            labelText: 'Họ và tên',
+            border: OutlineInputBorder(),
+          ),
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+    if (result != null && result.isNotEmpty && context.mounted) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(uid).update({'userName': result});
+        if (context.mounted) {
+          Navigator.of(context).pop(); // đóng dialog thông tin tài khoản
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đã cập nhật họ và tên'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
   }
 
   void _showLogoutDialog(BuildContext context) {
