@@ -86,6 +86,9 @@ class _NameSetupScreenState extends State<NameSetupScreen> {
                 const SizedBox(height: 32),
                 TextField(
                   controller: _nameController,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                   decoration: InputDecoration(
                     labelText: 'Họ và tên của bạn',
                     prefixIcon: const Icon(Icons.person_outline),

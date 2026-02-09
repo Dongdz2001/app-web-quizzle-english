@@ -272,6 +272,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                     onFieldSubmitted: (_) {
                       FocusScope.of(context).requestFocus(_passwordFocusNode);
                     },
@@ -301,6 +304,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     focusNode: _passwordFocusNode,
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.done,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                     onFieldSubmitted: (_) {
                       if (!_isLoading) {
                         _handleLogin();

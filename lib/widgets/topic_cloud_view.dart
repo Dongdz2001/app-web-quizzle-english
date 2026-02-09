@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../data/categories.dart';
 import '../data/init_data_names.dart';
@@ -49,10 +50,11 @@ class TopicCloudView extends StatefulWidget {
 }
 
 class _TopicCloudViewState extends State<TopicCloudView>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const double _mobileHitSlop = 20;
 
   late AnimationController _animController;
+  late AnimationController _shimmerController;
   Size _layoutSize = Size.zero;
   List<_WordPlacement> _placements = [];
   int? _hoveredPlacementIndex;
@@ -65,6 +67,11 @@ class _TopicCloudViewState extends State<TopicCloudView>
       duration: const Duration(milliseconds: 1800),
     );
     _animController.forward();
+
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    )..repeat();
   }
 
   @override
@@ -150,6 +157,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
   @override
   void dispose() {
     _animController.dispose();
+    _shimmerController.dispose();
     super.dispose();
   }
 
@@ -172,7 +180,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (context, constraints) {
+      builder: (BuildContext context, BoxConstraints constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
 
         final wordsContentChanged = _placements.length != widget.words.length ||
@@ -184,7 +192,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
 
         return AnimatedBuilder(
           animation: _animController,
-          builder: (context, _) {
+          builder: (BuildContext context, Widget? _) {
             return SizedBox(
               width: size.width,
               height: size.height,
@@ -282,56 +290,72 @@ class _TopicCloudViewState extends State<TopicCloudView>
   }
 
   Widget _buildCenterTopic() {
-    // Tâm cụm đặt chính xác tại (width/2, height/2) - đối xứng hoàn toàn
-    // Tự động xuống dòng cho tên dài (đặc biệt topic IPA có dấu ngoặc đơn)
-    // Nếu tên đã có \n thì giữ nguyên để hiển thị xuống dòng
     String displayName = widget.topicName;
     
-    // Nếu là grammar, viết tắt và in hoa tên tiếng Việt
     if (widget.categoryId == CategoryIds.grammar) {
       displayName = _abbreviateVietnameseName(displayName);
     } else {
       if (displayName.contains('(') && !displayName.contains('\n')) {
-        // Thêm \n trước dấu ngoặc đơn để xuống dòng
         displayName = displayName.replaceFirst(' (', '\n(');
       }
     }
-    // Nếu tên đã có \n (như "Thành ngữ\nthông dụng"), Text widget sẽ tự động hiển thị xuống dòng
     
     return Positioned(
       left: _layoutSize.width / 2,
       top: _layoutSize.height / 2,
-      child: FractionalTranslation(
-        translation: const Offset(-0.5, -0.5),
-        child: CloudWidget(
-          size: null,
-          imageAsset: kCloudCenterImageAsset,
-          padding: const EdgeInsets.all(kCloudPaddingCenter),
-          child: Text(
-            displayName,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.red,
+      child: AnimatedBuilder(
+        animation: _shimmerController,
+        builder: (BuildContext context, Widget? _) {
+          final val = _shimmerController.value;
+          return FractionalTranslation(
+            translation: const Offset(-0.5, -0.5),
+            child: CloudWidget(
+              size: null,
+              imageAsset: kCloudCenterImageAsset,
+              padding: const EdgeInsets.all(kCloudPaddingCenter),
+              child: ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  colors: const [Colors.deepOrange, Colors.yellow, Colors.deepOrange],
+                  stops: const [0.0, 0.5, 1.0],
+                  begin: Alignment(-2.0 + (val * 4.0), -1.0),
+                  end: Alignment(2.0 + (val * 4.0), 1.0),
+                ).createShader(bounds),
+                child: Text(
+                  displayName,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 2.0,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black45,
+                        offset: Offset(0, 3),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
 
   String _fullInfoText(Vocabulary w) {
     final parts = <String>[
-      w.word,
-      w.meaning,
+      'Từ: ${w.word}',
+      'Giải nghĩa: ${w.meaning}',
       if (w.wordForm.isNotEmpty) 'Loại từ: ${w.wordForm}',
       if (w.englishDefinition != null && w.englishDefinition!.isNotEmpty)
         'Phiên âm: ${w.englishDefinition}',
       if (w.synonym != null && w.synonym!.isNotEmpty)
-        'Từ đồng nghĩa: ${w.synonym}',
+        'Đồng nghĩa: ${w.synonym}',
       if (w.antonym != null && w.antonym!.isNotEmpty)
-        'Từ trái nghĩa: ${w.antonym}',
+        'Trái nghĩa: ${w.antonym}',
     ];
     return parts.join('\n');
   }
@@ -353,10 +377,10 @@ class _TopicCloudViewState extends State<TopicCloudView>
       opacity: curve,
       child: kIsWeb
           ? TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: isHovered ? 1.0 : 0),
+              tween: Tween<double>(begin: 0, end: isHovered ? 1.0 : 0),
               duration: hoverAnimDuration,
               curve: hoverCurve,
-              builder: (context, value, child) {
+              builder: (BuildContext context, double value, Widget? child) {
                 final scale = baseScale * (1.0 + value * (hoverScaleUp - 1.0));
                 return Transform.scale(scale: scale, child: child);
               },
@@ -371,22 +395,28 @@ class _TopicCloudViewState extends State<TopicCloudView>
     if (kIsWeb) {
       content = MouseRegion(
         cursor: SystemMouseCursors.click,
-        onEnter: (_) {
+        onEnter: (PointerEnterEvent event) {
           setState(() => _hoveredPlacementIndex = index);
-          widget.onGuideTextChanged?.call(
-            _fullInfoText(_placements[index].word),
-            null,
-          );
+          if (widget.onGuideTextChanged != null) {
+            widget.onGuideTextChanged!(
+              _fullInfoText(_placements[index].word),
+              null,
+            );
+          }
         },
-        onHover: (event) {
-          widget.onGuideTextChanged?.call(
-            _fullInfoText(_placements[index].word),
-            event.position,
-          );
+        onHover: (PointerHoverEvent event) {
+          if (widget.onGuideTextChanged != null) {
+            widget.onGuideTextChanged!(
+              _fullInfoText(_placements[index].word),
+              event.position,
+            );
+          }
         },
-        onExit: (_) {
+        onExit: (PointerExitEvent event) {
           setState(() => _hoveredPlacementIndex = null);
-          widget.onGuideTextChanged?.call(null, null);
+          if (widget.onGuideTextChanged != null) {
+            widget.onGuideTextChanged!(null, null);
+          }
         },
         child: Stack(
           clipBehavior: Clip.none,
@@ -632,7 +662,7 @@ class TopicCloudGuideHint extends StatelessWidget {
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
-      transitionBuilder: (child, animation) => FadeTransition(
+      transitionBuilder: (Widget child, Animation<double> animation) => FadeTransition(
         opacity: animation,
         child: child,
       ),

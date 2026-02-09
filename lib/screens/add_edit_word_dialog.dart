@@ -191,6 +191,9 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
     final fields = <Widget>[
       TextField(
         controller: _wordController,
+        enableSuggestions: false,
+        autocorrect: false,
+        spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
         decoration: _fieldDecoration(
           label: 'Word (Từ tiếng Anh) *',
           hint: isMobile ? 'VD: mother' : 'VD: mother, career...',
@@ -199,6 +202,9 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
       SizedBox(height: spacing),
       TextField(
         controller: _meaningController,
+        enableSuggestions: false,
+        autocorrect: false,
+        spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
         decoration: _fieldDecoration(
           label: 'Meaning (Nghĩa tiếng Việt)', // Bỏ bắt buộc nhập meaning theo yêu cầu mới là chỉ bắt buộc Word
           hint: isMobile ? 'VD: mẹ' : 'VD: mẹ, gia đình, sự nghiệp...',
@@ -223,6 +229,9 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
       SizedBox(height: spacing),
       TextField(
         controller: _englishDefController,
+        enableSuggestions: false,
+        autocorrect: false,
+        spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
         decoration: _fieldDecoration(
           label: 'Nhập phiên âm (Tùy chọn)',
           hint: isMobile ? '' : 'VD: /twɪn/, phiên âm IPA...',
@@ -237,19 +246,43 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
         children: [
           SizedBox(
             width: isMobile ? (screenWidth - 40) / 2 : 230,
-            child: TextField(controller: _nounController, decoration: _fieldDecoration(label: 'Danh từ')),
+            child: TextField(
+              controller: _nounController,
+              enableSuggestions: false,
+              autocorrect: false,
+              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+              decoration: _fieldDecoration(label: 'Danh từ'),
+            ),
           ),
           SizedBox(
             width: isMobile ? (screenWidth - 40) / 2 : 230,
-            child: TextField(controller: _verbController, decoration: _fieldDecoration(label: 'Động từ')),
+            child: TextField(
+              controller: _verbController,
+              enableSuggestions: false,
+              autocorrect: false,
+              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+              decoration: _fieldDecoration(label: 'Động từ'),
+            ),
           ),
           SizedBox(
             width: isMobile ? (screenWidth - 40) / 2 : 230,
-            child: TextField(controller: _adjController, decoration: _fieldDecoration(label: 'Tính từ')),
+            child: TextField(
+              controller: _adjController,
+              enableSuggestions: false,
+              autocorrect: false,
+              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+              decoration: _fieldDecoration(label: 'Tính từ'),
+            ),
           ),
           SizedBox(
             width: isMobile ? (screenWidth - 40) / 2 : 230,
-            child: TextField(controller: _advController, decoration: _fieldDecoration(label: 'Trạng từ')),
+            child: TextField(
+              controller: _advController,
+              enableSuggestions: false,
+              autocorrect: false,
+              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+              decoration: _fieldDecoration(label: 'Trạng từ'),
+            ),
           ),
         ],
       ),
@@ -262,15 +295,33 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
         children: [
           SizedBox(
             width: isMobile ? (screenWidth - 40) / 2 : 230,
-            child: TextField(controller: _vEdController, decoration: _fieldDecoration(label: 'V-ed')),
+            child: TextField(
+              controller: _vEdController,
+              enableSuggestions: false,
+              autocorrect: false,
+              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+              decoration: _fieldDecoration(label: 'V-ed'),
+            ),
           ),
           SizedBox(
             width: isMobile ? (screenWidth - 40) / 2 : 230,
-            child: TextField(controller: _vIngController, decoration: _fieldDecoration(label: 'V-ing')),
+            child: TextField(
+              controller: _vIngController,
+              enableSuggestions: false,
+              autocorrect: false,
+              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+              decoration: _fieldDecoration(label: 'V-ing'),
+            ),
           ),
           SizedBox(
             width: isMobile ? (screenWidth - 40) / 2 : 230,
-            child: TextField(controller: _vSesController, decoration: _fieldDecoration(label: 'V-s/es')),
+            child: TextField(
+              controller: _vSesController,
+              enableSuggestions: false,
+              autocorrect: false,
+              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+              decoration: _fieldDecoration(label: 'V-s/es'),
+            ),
           ),
         ],
       ),
@@ -283,6 +334,9 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
             width: isMobile ? (screenWidth - 40) / 2 : 230,
             child: TextField(
               controller: _synonymController,
+              enableSuggestions: false,
+              autocorrect: false,
+              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
               decoration: _fieldDecoration(
                 label: isMobile ? 'Synonym' : 'Synonym (Từ đồng nghĩa)',
                 hint: isMobile ? '' : 'VD: mom, household...',
@@ -293,6 +347,9 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
             width: isMobile ? (screenWidth - 40) / 2 : 230,
             child: TextField(
               controller: _antonymController,
+              enableSuggestions: false,
+              autocorrect: false,
+              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
               decoration: _fieldDecoration(
                 label: isMobile ? 'Antonym' : 'Antonym (Từ trái nghĩa)',
                 hint: isMobile ? '' : 'VD: father, children...',

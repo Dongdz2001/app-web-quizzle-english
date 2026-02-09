@@ -50,9 +50,17 @@ class FirebaseService {
       await _firestore.collection(_usersCollection).doc(user.uid).set(userData);
     }
 
+    String? userName = userData?['userName'] as String?;
+    final userEmail = user.email?.toLowerCase();
+    
+    // Nếu là admin, đổi tên hiển thị thành "Cô Chi"
+    if (userEmail == 'adminchi@gmail.com') {
+      userName = 'Cô Chi';
+    }
+
     return CreatorMetadata(
       userId: user.uid,
-      userName: userData?['userName'] as String?,
+      userName: userName,
       userEmail: userData?['userEmail'] as String?,
       userAvatarUrl: userData?['userAvatarUrl'] as String?,
     );

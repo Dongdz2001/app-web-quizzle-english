@@ -120,22 +120,32 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  AntdInput(
-                    value: _nameController.text,
-                    placeholder: Text(
-                      isMobile ? 'VD: Gia đình' : 'VD: Gia đình, Công việc...',
+                  TextField(
+                    controller: _nameController,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                    decoration: InputDecoration(
+                      labelText: 'Tên Topic',
+                      hintText: isMobile ? 'VD: Gia đình' : 'VD: Gia đình, Công việc...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    onChange: (val) =>
-                        setState(() => _nameController.text = val ?? ''),
                   ),
                   SizedBox(height: spacing),
-                  AntdTextArea(
-                    value: _descController.text,
-                    placeholder: const Text('Mô tả (tuỳ chọn)'),
+                  TextField(
+                    controller: _descController,
+                    enableSuggestions: false,
+                    autocorrect: false,
+                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                     maxLines: isMobile ? 2 : 3,
-                    showCount: false,
-                    onChange: (val) =>
-                        setState(() => _descController.text = val ?? ''),
+                    decoration: InputDecoration(
+                      labelText: 'Mô tả (tuỳ chọn)',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                   SizedBox(height: spacing),
                   DropdownButtonFormField<String>(

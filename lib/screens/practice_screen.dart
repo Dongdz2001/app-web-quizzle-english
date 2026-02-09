@@ -251,6 +251,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 ),
                 const SizedBox(height: 24),
                 TextField(
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                   decoration: InputDecoration(
                     hintText: 'Nhập từ tiếng Anh',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

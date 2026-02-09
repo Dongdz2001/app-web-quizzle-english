@@ -112,7 +112,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     }
 
     return Consumer<VocabProvider>(
-      builder: (context, provider, _) {
+      builder: (BuildContext context, VocabProvider provider, Widget? _) {
         final topic = provider.getTopic(topicId);
         if (topic == null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -129,38 +129,51 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
         final hideAppBarInLandscape = !kIsWeb && isLandscape && !_appBarVisible && !isMobile;
 
         return Scaffold(
+          extendBodyBehindAppBar: kIsWeb,
           appBar: hideAppBarInLandscape
               ? null
               : _buildAppBar(context, topic.name, topicId, topic.words.isEmpty),
-          body: Column(
+          body: Stack(
             children: [
-              // App bar reveal gesture (only for landscape cloud view)
-              if (!isMobile && isLandscape && !kIsWeb)
-                GestureDetector(
-                  onTap: _showAppBarTemporarily,
-                  behavior: HitTestBehavior.translucent,
-                  child: SizedBox(
-                    height: 48,
-                    width: double.infinity,
-                    child: Center(
-                      child: _appBarVisible
-                          ? null
-                          : Icon(
-                              Icons.keyboard_arrow_down,
-                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                              size: 28,
-                            ),
-                    ),
+              if (kIsWeb)
+                Positioned.fill(
+                  child: Image.asset(
+                    'assets/sky_beanch.gif',
+                    fit: BoxFit.cover,
                   ),
                 ),
-              
-              // Main Content
-              Expanded(
-                child: topic.words.isEmpty
-                    ? _buildEmptyState(context, provider, topicId)
-                    : (isMobile 
-                        ? _buildMobileListView(context, provider, topicId, topic.words)
-                        : _buildCloudView(context, provider, topicId, topic)),
+              Column(
+                children: [
+                  if (kIsWeb) const SizedBox(height: kToolbarHeight + 20),
+                  // App bar reveal gesture (only for landscape cloud view)
+                  if (!isMobile && isLandscape && !kIsWeb)
+                    GestureDetector(
+                      onTap: _showAppBarTemporarily,
+                      behavior: HitTestBehavior.translucent,
+                      child: SizedBox(
+                        height: 48,
+                        width: double.infinity,
+                        child: Center(
+                          child: _appBarVisible
+                              ? null
+                              : Icon(
+                                  Icons.keyboard_arrow_down,
+                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                                  size: 28,
+                                ),
+                        ),
+                      ),
+                    ),
+                  
+                  // Main Content
+                  Expanded(
+                    child: topic.words.isEmpty
+                        ? _buildEmptyState(context, provider, topicId)
+                        : (isMobile 
+                            ? _buildMobileListView(context, provider, topicId, topic.words)
+                            : _buildCloudView(context, provider, topicId, topic)),
+                  ),
+                ],
               ),
             ],
           ),
@@ -414,7 +427,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     dynamic topic
   ) {
     return LayoutBuilder(
-      builder: (context, constraints) {
+      builder: (BuildContext context, BoxConstraints constraints) {
         final vw = constraints.maxWidth;
         final vh = constraints.maxHeight;
         final count = topic.words.length;
@@ -451,7 +464,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                   onWordLongPress: (word) => _showWordContextMenu(
                       context, provider, topicId, word),
                   onGuideTextChanged: kIsWeb
-                      ? (text, position) => setState(() {
+                      ? (String? text, Offset? position) => setState(() {
                           _guideText = text;
                           _guidePosition = position;
                         })
@@ -463,7 +476,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
               Positioned.fill(
                 child: IgnorePointer(
                   child: Builder(
-                    builder: (context) {
+                    builder: (BuildContext context) {
                       try {
                         if (_guideText == null) return const SizedBox.shrink();
                         final stackBox = context.findAncestorRenderObjectOfType<RenderStack>() as RenderBox?;
@@ -502,7 +515,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     bool wordsEmpty,
   ) {
     return AppBar(
-      title: Text(topicName),
+      backgroundColor: kIsWeb ? Colors.transparent : null,
+      elevation: kIsWeb ? 0 : null,
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: () => Navigator.pop(context),
@@ -544,7 +558,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
         ),
       ),
     );
-    if (result != null && result.word.isNotEmpty && result.meaning.isNotEmpty) {
+    if (result != null && result.word.trim().isNotEmpty) {
       final added = await provider.addWord(topicId, result);
       if (!added && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -93,6 +93,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         title: const Text('Tạo lớp mới'),
         content: TextField(
           controller: controller,
+          enableSuggestions: false,
+          autocorrect: false,
+          spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
           decoration: const InputDecoration(
             labelText: 'Mã lớp',
             hintText: 'VD: 12A1, K8...',
@@ -554,6 +557,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                   decoration: InputDecoration(
                     labelText: 'Email *',
                     hintText: 'Nhập email',
@@ -741,6 +747,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 TextField(
                   controller: _bulkQuantityController,
                   keyboardType: TextInputType.number,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                   decoration: InputDecoration(
                     labelText: 'Số lượng tài khoản *',
                     hintText: 'VD: 10 (tối đa 100)',
@@ -754,6 +763,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: _bulkPrefixController,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                   decoration: InputDecoration(
                     labelText: 'Tiền tố email *',
                     hintText: 'VD: user, student',
@@ -767,6 +779,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 const SizedBox(height: 16),
                 TextField(
                   controller: _bulkSuffixController,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                   decoration: InputDecoration(
                     labelText: 'Hậu tố email (domain) *',
                     hintText: 'VD: quizzle.com, example.com',
@@ -1445,6 +1460,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               TextField(
                 controller: _filterController,
+                enableSuggestions: false,
+                autocorrect: false,
+                spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                 decoration: InputDecoration(
                   labelText: 'Tìm kiếm',
                   hintText: 'Email, Tên...',
@@ -1698,10 +1716,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       width: 250,
                       child: TextField(
                         controller: _filterController,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                         decoration: InputDecoration(
-                          labelText: 'Tìm kiếm',
+                          labelText: 'Tìm kiếm học sinh',
                           hintText: 'Email, Tên...',
-                          prefixIcon: const Icon(Icons.search, size: 18),
+                          prefixIcon: const Icon(Icons.search, size: 20),
                           suffixIcon: _filterController.text.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(Icons.clear, size: 16),
@@ -1727,10 +1748,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       width: 180,
                       child: TextField(
                         controller: _prefixFilterController,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
                         decoration: InputDecoration(
-                          labelText: 'Tiền tố email',
+                          labelText: 'Lọc theo đầu số',
                           hintText: 'VD: user...',
-                          prefixIcon: const Icon(Icons.filter_alt, size: 18),
+                          prefixIcon: const Icon(Icons.filter_list, size: 20),
                           suffixIcon: _prefixFilterController.text.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(Icons.clear, size: 16),
