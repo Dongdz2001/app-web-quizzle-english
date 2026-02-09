@@ -33,7 +33,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // Filter và selection
   final _filterController = TextEditingController();
   final _prefixFilterController = TextEditingController();
-  Set<String> _selectedUserIds = {};
+  final Set<String> _selectedUserIds = {};
   DateTime? _startDate;
   DateTime? _endDate;
   
@@ -571,7 +571,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedClassInDialog,
+                  initialValue: _selectedClassInDialog,
                   decoration: InputDecoration(
                     labelText: 'Chọn lớp học',
                     prefixIcon: const Icon(Icons.class_outlined),
@@ -794,7 +794,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _selectedClassInDialog,
+                  initialValue: _selectedClassInDialog,
                   decoration: InputDecoration(
                     labelText: 'Chọn lớp học cho cả đoàn',
                     prefixIcon: const Icon(Icons.class_outlined),
@@ -1253,7 +1253,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Text('Đang chọn ${_selectedUserIds.length} tài khoản'),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: localSelectedClass,
+                initialValue: localSelectedClass,
                 decoration: const InputDecoration(
                   labelText: 'Chọn lớp mới',
                   border: OutlineInputBorder(),
@@ -1453,38 +1453,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildMobileLayout(BuildContext context) {
     return Column(
       children: [
-        // Filters section
+        // Filters section - textbox full width trên mobile để dễ thấy, dễ chọn
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextField(
-                controller: _filterController,
-                enableSuggestions: false,
-                autocorrect: false,
-                spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                decoration: InputDecoration(
-                  labelText: 'Tìm kiếm',
-                  hintText: 'Email, Tên...',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: _filterController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 16),
-                          onPressed: () {
-                            _filterController.clear();
-                            setState(() {});
-                          },
-                        )
-                      : null,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  isDense: true,
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 8),
               if (_selectedUserIds.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
                     color: Colors.blue[50],
                     borderRadius: BorderRadius.circular(8),
@@ -1501,6 +1479,137 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ],
                   ),
                 ),
+              // Hai ô nhập full width, dễ thấy và dễ chọn trên mobile
+              TextField(
+                controller: _filterController,
+                enableSuggestions: false,
+                autocorrect: false,
+                spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                decoration: InputDecoration(
+                  labelText: 'Tìm kiếm học sinh',
+                  hintText: 'Email, Tên...',
+                  prefixIcon: const Icon(Icons.search, size: 22),
+                  suffixIcon: _filterController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 20),
+                          onPressed: () {
+                            _filterController.clear();
+                            setState(() {});
+                          },
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                        )
+                      : null,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+                style: const TextStyle(fontSize: 16),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _prefixFilterController,
+                enableSuggestions: false,
+                autocorrect: false,
+                spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                decoration: InputDecoration(
+                  labelText: 'Lọc theo đầu số',
+                  hintText: 'VD: user...',
+                  prefixIcon: const Icon(Icons.filter_list, size: 22),
+                  suffixIcon: _prefixFilterController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 20),
+                          onPressed: () {
+                            _prefixFilterController.clear();
+                            setState(() {});
+                          },
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                        )
+                      : null,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+                style: const TextStyle(fontSize: 16),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 12),
+              // Date + nút hành động wrap xuống dòng
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 130,
+                    child: _buildDateChip(
+                      context,
+                      date: _startDate,
+                      label: 'Từ ngày',
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _startDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) setState(() => _startDate = picked);
+                      },
+                      onClear: () => setState(() => _startDate = null),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 130,
+                    child: _buildDateChip(
+                      context,
+                      date: _endDate,
+                      label: 'Đến ngày',
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: _endDate ?? DateTime.now(),
+                          firstDate: _startDate ?? DateTime(2020),
+                          lastDate: DateTime.now(),
+                        );
+                        if (picked != null) setState(() => _endDate = picked);
+                      },
+                      onClear: () => setState(() => _endDate = null),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _selectedUserIds.isEmpty ? null : _copyAllSelectedAccountsFromIds,
+                    icon: const Icon(Icons.copy_all),
+                    label: const Text('Copy All'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _selectedUserIds.isEmpty ? null : () => _toggleMultipleUsersStatus(true),
+                    icon: const Icon(Icons.block),
+                    label: const Text('Vô hiệu hóa'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _selectedUserIds.isEmpty ? null : () => _showChangeClassDialog(context),
+                    icon: const Icon(Icons.drive_file_move_outline),
+                    label: const Text('Chuyển lớp'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -1516,7 +1625,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
               // Filter logic (same as desktop)
               final filterText = _filterController.text.toLowerCase();
-              final prefixFilter = _prefixFilterController.text.toLowerCase(); // Note: Mobile might not show this filter field yet, add if needed
+              final prefixFilter = _prefixFilterController.text.toLowerCase();
               
               final filteredDocs = snapshot.data!.docs.where((doc) {
                 final data = doc.data() as Map<String, dynamic>;
@@ -1524,6 +1633,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ? (data['email'] as String? ?? '')
                     : (data['userEmail'] as String? ?? '')).toLowerCase();
                 final name = (data['userName'] as String? ?? '').toLowerCase();
+                final createdAt = data['createdAt'] as dynamic;
                 
                 if (email.isEmpty || email == 'adminchi@gmail.com') return false;
                 
@@ -1532,9 +1642,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   matchesSearch = email.contains(filterText) || name.contains(filterText);
                 }
                 
-                // Add prefix and date filter logic here if needed for mobile
+                bool matchesPrefix = true;
+                if (prefixFilter.isNotEmpty) {
+                  final emailPrefix = email.split('@').first;
+                  matchesPrefix = emailPrefix.startsWith(prefixFilter);
+                }
                 
-                return matchesSearch;
+                bool matchesDate = true;
+                if (createdAt != null && createdAt is Timestamp) {
+                  final createdDate = createdAt.toDate();
+                  if (_startDate != null) {
+                    final startOfDay = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
+                    matchesDate = matchesDate && createdDate.isAfter(startOfDay.subtract(const Duration(days: 1)));
+                  }
+                  if (_endDate != null) {
+                    final endOfDay = DateTime(_endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59);
+                    matchesDate = matchesDate && createdDate.isBefore(endOfDay.add(const Duration(seconds: 1)));
+                  }
+                } else {
+                  if (_startDate != null || _endDate != null) matchesDate = false;
+                }
+                
+                return matchesSearch && matchesPrefix && matchesDate;
               }).toList();
 
               if (filteredDocs.isEmpty) return const Center(child: Text('Không tìm thấy kết quả'));
@@ -1569,15 +1698,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             }
                           });
                       },
-                      onTap: _selectedUserIds.isNotEmpty ? () {
+                      onTap: () {
                         setState(() {
-                            if (isSelected) {
-                              _selectedUserIds.remove(userId);
-                            } else {
-                              _selectedUserIds.add(userId);
-                            }
-                          });
-                      } : null,
+                          if (isSelected) {
+                            _selectedUserIds.remove(userId);
+                          } else {
+                            _selectedUserIds.add(userId);
+                          }
+                        });
+                      },
                       borderRadius: BorderRadius.circular(12),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -1586,6 +1715,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           children: [
                             Row(
                               children: [
+                                Checkbox(
+                                  value: isSelected,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      if (value == true) {
+                                        _selectedUserIds.add(userId);
+                                      } else {
+                                        _selectedUserIds.remove(userId);
+                                      }
+                                    });
+                                  },
+                                  activeColor: Colors.blue,
+                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                const SizedBox(width: 8),
                                 CircleAvatar(
                                   radius: 20,
                                   child: Text(name.isNotEmpty ? name[0].toUpperCase() : email[0].toUpperCase()),
@@ -1600,7 +1744,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                     ],
                                   ),
                                 ),
-                                if (isSelected) const Icon(Icons.check_circle, color: Colors.blue),
                               ],
                             ),
                             const Divider(height: 24),
@@ -1675,6 +1818,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                         ),
                       ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
                     ElevatedButton.icon(
                       onPressed: _showCreateClassDialog,
                       icon: const Icon(Icons.add_home_work),
@@ -1685,7 +1836,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
-                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       onPressed: () => _showCreateUserDialog(context),
                       icon: const Icon(Icons.person_add),
@@ -1694,7 +1844,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       ),
                     ),
-                    const SizedBox(width: 8),
                     ElevatedButton.icon(
                       onPressed: () => _showCreateBulkUsersDialog(context),
                       icon: const Icon(Icons.batch_prediction),
@@ -2267,6 +2416,49 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDateChip(
+    BuildContext context, {
+    required DateTime? date,
+    required String label,
+    required VoidCallback onTap,
+    required VoidCallback onClear,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_today, size: 16),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                date != null ? _formatDateOnly(date) : label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: date != null ? Colors.black : Colors.grey[600],
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (date != null)
+              IconButton(
+                icon: const Icon(Icons.clear, size: 16),
+                onPressed: onClear,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+          ],
+        ),
+      ),
     );
   }
 
