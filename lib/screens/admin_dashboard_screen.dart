@@ -1332,7 +1332,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Hiển thị loading trong khi đang kiểm tra user
     if (_isCheckingUser) {
       return const Scaffold(
         body: Center(
@@ -1340,6 +1339,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ),
       );
     }
+
+    final isMobile = MediaQuery.of(context).size.width < 800;
 
     return Scaffold(
       appBar: AppBar(
@@ -1357,627 +1358,891 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Users List
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Danh sách người dùng',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                          ),
-                        ),
-                        if (_selectedUserIds.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 16),
-                            child: Text(
-                              'Đã chọn: ${_selectedUserIds.length}',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ElevatedButton.icon(
-                          onPressed: _showCreateClassDialog,
-                          icon: const Icon(Icons.add_home_work),
-                          label: const Text('Tạo lớp mới'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blueGrey,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          onPressed: () => _showCreateUserDialog(context),
-                          icon: const Icon(Icons.person_add),
-                          label: const Text('Thêm tài khoản mới'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        ElevatedButton.icon(
-                          onPressed: () => _showCreateBulkUsersDialog(context),
-                          icon: const Icon(Icons.batch_prediction),
-                          label: const Text('Thêm nhiều tài khoản'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          ),
-                        ),
-                      ],
+      body: isMobile
+          ? _buildMobileLayout(context)
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: _buildDesktopContent(context),
+            ),
+      floatingActionButton: isMobile
+          ? FloatingActionButton(
+              onPressed: () => _showMobileActionMenu(context),
+              child: const Icon(Icons.add),
+            )
+          : null,
+    );
+  }
+
+  void _showMobileActionMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.add_home_work),
+            title: const Text('Tạo lớp mới'),
+            onTap: () {
+              Navigator.pop(context);
+              _showCreateClassDialog();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_add),
+            title: const Text('Thêm tài khoản mới'),
+            onTap: () {
+              Navigator.pop(context);
+              _showCreateUserDialog(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.batch_prediction),
+            title: const Text('Thêm nhiều tài khoản'),
+            onTap: () {
+              Navigator.pop(context);
+              _showCreateBulkUsersDialog(context);
+            },
+          ),
+          if (_selectedUserIds.isNotEmpty) ...[
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.copy_all),
+              title: const Text('Copy All Selected'),
+              onTap: () {
+                Navigator.pop(context);
+                _copyAllSelectedAccountsFromIds();
+              },
+            ),
+             ListTile(
+              leading: const Icon(Icons.block, color: Colors.orange),
+              title: const Text('Vô hiệu hóa đã chọn', style: TextStyle(color: Colors.orange)),
+              onTap: () {
+                Navigator.pop(context);
+                _toggleMultipleUsersStatus(true);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.drive_file_move_outline, color: Colors.orange),
+              title: const Text('Chuyển lớp đã chọn', style: TextStyle(color: Colors.orange)),
+              onTap: () {
+                Navigator.pop(context);
+                _showChangeClassDialog(context);
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileLayout(BuildContext context) {
+    return Column(
+      children: [
+        // Filters section
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextField(
+                controller: _filterController,
+                decoration: InputDecoration(
+                  labelText: 'Tìm kiếm',
+                  hintText: 'Email, Tên...',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _filterController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          onPressed: () {
+                            _filterController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  isDense: true,
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 8),
+              if (_selectedUserIds.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue[200]!),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Đã chọn: ${_selectedUserIds.length}', style: TextStyle(color: Colors.blue[800], fontWeight: FontWeight.bold)),
+                      TextButton(
+                        onPressed: () => setState(() => _selectedUserIds.clear()),
+                        child: const Text('Bỏ chọn'),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+        
+        // List content
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: _firestore.collection('users').orderBy('createdAt', descending: true).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) return Center(child: Text('Lỗi: ${snapshot.error}'));
+              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('Chưa có người dùng nào'));
+
+              // Filter logic (same as desktop)
+              final filterText = _filterController.text.toLowerCase();
+              final prefixFilter = _prefixFilterController.text.toLowerCase(); // Note: Mobile might not show this filter field yet, add if needed
+              
+              final filteredDocs = snapshot.data!.docs.where((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final email = ((data['userEmail'] as String? ?? '').isEmpty
+                    ? (data['email'] as String? ?? '')
+                    : (data['userEmail'] as String? ?? '')).toLowerCase();
+                final name = (data['userName'] as String? ?? '').toLowerCase();
+                
+                if (email.isEmpty || email == 'adminchi@gmail.com') return false;
+                
+                bool matchesSearch = true;
+                if (filterText.isNotEmpty) {
+                  matchesSearch = email.contains(filterText) || name.contains(filterText);
+                }
+                
+                // Add prefix and date filter logic here if needed for mobile
+                
+                return matchesSearch;
+              }).toList();
+
+              if (filteredDocs.isEmpty) return const Center(child: Text('Không tìm thấy kết quả'));
+
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                itemCount: filteredDocs.length,
+                itemBuilder: (context, index) {
+                  final doc = filteredDocs[index];
+                  final data = doc.data() as Map<String, dynamic>;
+                  final userId = (data['userId'] as String? ?? '').isEmpty ? doc.id : (data['userId'] as String? ?? '');
+                  final email = (data['userEmail'] as String? ?? '').isEmpty ? (data['email'] as String? ?? '') : (data['userEmail'] as String? ?? '');
+                  final name = data['userName'] as String? ?? 'Chưa đặt tên';
+                  final classCode = data['classCode'] as String? ?? '-';
+                  final isLogin = data['isLogin'] ?? true;
+                  final isSelected = _selectedUserIds.contains(userId);
+
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: isSelected ? const BorderSide(color: Colors.blue, width: 2) : BorderSide.none,
                     ),
-                    const SizedBox(height: 16),
-                    // Filter và Copy All
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        SizedBox(
-                          width: 250,
-                          child: TextField(
-                            controller: _filterController,
-                            decoration: InputDecoration(
-                              labelText: 'Tìm kiếm',
-                              hintText: 'Email, Tên...',
-                              prefixIcon: const Icon(Icons.search, size: 18),
-                              suffixIcon: _filterController.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear, size: 16),
-                                      onPressed: () {
-                                        _filterController.clear();
-                                        setState(() {});
-                                      },
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    )
-                                  : null,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              isDense: true,
-                            ),
-                            style: const TextStyle(fontSize: 14),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                        ),
-                        SizedBox(
-                          width: 180,
-                          child: TextField(
-                            controller: _prefixFilterController,
-                            decoration: InputDecoration(
-                              labelText: 'Tiền tố email',
-                              hintText: 'VD: user...',
-                              prefixIcon: const Icon(Icons.filter_alt, size: 18),
-                              suffixIcon: _prefixFilterController.text.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear, size: 16),
-                                      onPressed: () {
-                                        _prefixFilterController.clear();
-                                        setState(() {});
-                                      },
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    )
-                                  : null,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              isDense: true,
-                            ),
-                            style: const TextStyle(fontSize: 14),
-                            onChanged: (_) => setState(() {}),
-                          ),
-                        ),
-                        // Date picker - Từ ngày
-                        SizedBox(
-                          width: 140,
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _startDate ?? DateTime.now(),
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime.now(),
-                              );
-                              if (picked != null) {
-                                setState(() {
-                                  _startDate = picked;
-                                });
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.calendar_today, size: 16),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      _startDate != null
-                                          ? _formatDateOnly(_startDate!)
-                                          : 'Từ ngày',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: _startDate != null ? Colors.black : Colors.grey[600],
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if (_startDate != null)
-                                    IconButton(
-                                      icon: const Icon(Icons.clear, size: 16),
-                                      onPressed: () {
-                                        setState(() {
-                                          _startDate = null;
-                                        });
-                                      },
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Date picker - Đến ngày
-                        SizedBox(
-                          width: 140,
-                          child: InkWell(
-                            onTap: () async {
-                              final picked = await showDatePicker(
-                                context: context,
-                                initialDate: _endDate ?? DateTime.now(),
-                                firstDate: _startDate ?? DateTime(2020),
-                                lastDate: DateTime.now(),
-                              );
-                              if (picked != null) {
-                                setState(() {
-                                  _endDate = picked;
-                                });
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.calendar_today, size: 16),
-                                  const SizedBox(width: 4),
-                                  Expanded(
-                                    child: Text(
-                                      _endDate != null
-                                          ? _formatDateOnly(_endDate!)
-                                          : 'Đến ngày',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: _endDate != null ? Colors.black : Colors.grey[600],
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if (_endDate != null)
-                                    IconButton(
-                                      icon: const Icon(Icons.clear, size: 16),
-                                      onPressed: () {
-                                        setState(() {
-                                          _endDate = null;
-                                        });
-                                      },
-                                      padding: EdgeInsets.zero,
-                                      constraints: const BoxConstraints(),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: _selectedUserIds.isEmpty
-                              ? null
-                              : _copyAllSelectedAccountsFromIds,
-                          icon: const Icon(Icons.copy_all),
-                          label: const Text('Copy All'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: _selectedUserIds.isEmpty
-                              ? null
-                              : () => _toggleMultipleUsersStatus(true),
-                          icon: const Icon(Icons.block),
-                          label: const Text('Vô hiệu hóa'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            backgroundColor: Colors.orange,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: _selectedUserIds.isEmpty
-                              ? null
-                              : () => _showChangeClassDialog(context),
-                          icon: const Icon(Icons.drive_file_move_outline),
-                          label: const Text('Chuyển lớp'),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            backgroundColor: Colors.orange,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    StreamBuilder<QuerySnapshot>(
-                      stream: _firestore
-                          .collection('users')
-                          .orderBy('createdAt', descending: true)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasError) {
-                          return Text('Lỗi: ${snapshot.error}');
-                        }
-
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-
-                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(24.0),
-                            child: Text(
-                              'Chưa có người dùng nào',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          );
-                        }
-
-                        // Filter users
-                        final filterText = _filterController.text.toLowerCase();
-                        final prefixFilter = _prefixFilterController.text.toLowerCase();
-                        final filteredDocs = snapshot.data!.docs.where((doc) {
-                          final data = doc.data() as Map<String, dynamic>;
-                          // Lấy email từ userEmail hoặc email (fallback)
-                          final email = ((data['userEmail'] as String? ?? '').isEmpty
-                              ? (data['email'] as String? ?? '')
-                              : (data['userEmail'] as String? ?? '')).toLowerCase();
-                          final name = (data['userName'] as String? ?? '').toLowerCase();
-                          final createdAt = data['createdAt'] as Timestamp?;
-                          
-                          // Bỏ qua các document không có email
-                          if (email.isEmpty) {
-                            return false;
-                          }
-                          
-                          // Bỏ qua tài khoản admin
-                          if (email == 'adminchi@gmail.com') {
-                            return false;
-                          }
-                          
-                          // Filter theo tìm kiếm (email hoặc tên)
-                          bool matchesSearch = true;
-                          if (filterText.isNotEmpty) {
-                            matchesSearch = email.contains(filterText) || name.contains(filterText);
-                          }
-                          
-                          // Filter theo tiền tố email
-                          bool matchesPrefix = true;
-                          if (prefixFilter.isNotEmpty) {
-                            // Lấy phần trước @ của email để so sánh tiền tố
-                            final emailPrefix = email.split('@').first;
-                            matchesPrefix = emailPrefix.startsWith(prefixFilter);
-                          }
-                          
-                          // Filter theo ngày tạo
-                          bool matchesDate = true;
-                          if (createdAt != null) {
-                            final createdDate = createdAt.toDate();
-                            if (_startDate != null) {
-                              // So sánh từ đầu ngày (00:00:00)
-                              final startOfDay = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
-                              matchesDate = matchesDate && createdDate.isAfter(startOfDay.subtract(const Duration(days: 1)));
+                    elevation: 2,
+                    child: InkWell(
+                      onLongPress: () {
+                         setState(() {
+                            if (isSelected) {
+                              _selectedUserIds.remove(userId);
+                            } else {
+                              _selectedUserIds.add(userId);
                             }
-                            if (_endDate != null) {
-                              // So sánh đến cuối ngày (23:59:59)
-                              final endOfDay = DateTime(_endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59);
-                              matchesDate = matchesDate && createdDate.isBefore(endOfDay.add(const Duration(seconds: 1)));
-                            }
-                          } else {
-                            // Nếu không có createdAt và có filter date thì không match
-                            if (_startDate != null || _endDate != null) {
-                              matchesDate = false;
-                            }
-                          }
-                          
-                          return matchesSearch && matchesPrefix && matchesDate;
-                        }).toList();
-
-                        if (filteredDocs.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.all(24.0),
-                            child: Text(
-                              'Không tìm thấy người dùng nào',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          );
-                        }
-
-                        // Check if all filtered users are selected
-                        final allFilteredSelected = filteredDocs.isNotEmpty &&
-                            filteredDocs.every((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              // Lấy userId từ field hoặc document ID
-                              final userId = (data['userId'] as String? ?? '').isEmpty 
-                                  ? doc.id 
-                                  : (data['userId'] as String? ?? '');
-                              return userId.isNotEmpty && _selectedUserIds.contains(userId);
-                            });
-
-                        return SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            columns: [
-                              DataColumn(
-                                label: Checkbox(
-                                  value: allFilteredSelected,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      if (value == true) {
-                                        // Select all filtered users
-                                        for (var doc in filteredDocs) {
-                                          final data = doc.data() as Map<String, dynamic>;
-                                          // Lấy userId từ field hoặc document ID
-                                          final userId = (data['userId'] as String? ?? '').isEmpty 
-                                              ? doc.id 
-                                              : (data['userId'] as String? ?? '');
-                                          if (userId.isNotEmpty) {
-                                            _selectedUserIds.add(userId);
-                                          }
-                                        }
-                                      } else {
-                                        // Deselect all filtered users
-                                        for (var doc in filteredDocs) {
-                                          final data = doc.data() as Map<String, dynamic>;
-                                          // Lấy userId từ field hoặc document ID
-                                          final userId = (data['userId'] as String? ?? '').isEmpty 
-                                              ? doc.id 
-                                              : (data['userId'] as String? ?? '');
-                                          _selectedUserIds.remove(userId);
-                                        }
-                                      }
-                                    });
-                                  },
-                                ),
-                              ),
-                              const DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
-                              const DataColumn(label: Text('Mã lớp', style: TextStyle(fontWeight: FontWeight.bold))),
-                              const DataColumn(label: Text('Tên', style: TextStyle(fontWeight: FontWeight.bold))),
-                              const DataColumn(label: Text('Mật khẩu', style: TextStyle(fontWeight: FontWeight.bold))),
-                              const DataColumn(label: Text('Ngày tạo', style: TextStyle(fontWeight: FontWeight.bold))),
-                              const DataColumn(label: Text('Trạng thái', style: TextStyle(fontWeight: FontWeight.bold))),
-                              const DataColumn(label: Text('Thao tác', style: TextStyle(fontWeight: FontWeight.bold))),
-                            ],
-                            rows: filteredDocs.map((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              // Lấy userId từ field hoặc document ID
-                              final userId = (data['userId'] as String? ?? '').isEmpty 
-                                  ? doc.id 
-                                  : (data['userId'] as String? ?? '');
-                              // Lấy email từ userEmail hoặc email (fallback)
-                              final email = (data['userEmail'] as String? ?? '').isEmpty
-                                  ? (data['email'] as String? ?? '')
-                                  : (data['userEmail'] as String? ?? '');
-                              final name = data['userName'] as String? ?? '';
-                              final password = data['password'] as String? ?? '';
-                              final createdAt = data['createdAt'] as Timestamp?;
-                              final isAdmin = email.toLowerCase() == 'adminchi@gmail.com';
-
-                              // Bỏ qua các document không có email hoặc userId hợp lệ
-                              if (email.isEmpty || userId.isEmpty) {
-                                return null;
-                              }
-
-                              final isSelected = _selectedUserIds.contains(userId);
-
-                              return DataRow(
-                                selected: isSelected,
-                                cells: [
-                                  DataCell(
-                                    Checkbox(
-                                      value: isSelected,
-                                      onChanged: isAdmin
-                                          ? null
-                                          : (value) {
-                                              setState(() {
-                                                if (value == true) {
-                                                  _selectedUserIds.add(userId);
-                                                } else {
-                                                  _selectedUserIds.remove(userId);
-                                                }
-                                              });
-                                            },
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 16,
-                                          child: Text(
-                                            name.isNotEmpty
-                                                ? name[0].toUpperCase()
-                                                : email.isNotEmpty
-                                                    ? email[0].toUpperCase()
-                                                    : '?',
-                                            style: const TextStyle(fontSize: 12),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            mainAxisAlignment: MainAxisAlignment.center,
-                                            children: [
-                                              Row(
-                                                children: [
-                                                  Expanded(
-                                                    child: SelectableText(
-                                                      email,
-                                                      style: const TextStyle(fontFamily: 'monospace'),
-                                                    ),
-                                                  ),
-                                                  IconButton(
-                                                    icon: const Icon(Icons.copy, size: 18),
-                                                    onPressed: () {
-                                                      Clipboard.setData(ClipboardData(text: email));
-                                                      ScaffoldMessenger.of(context).showSnackBar(
-                                                        const SnackBar(content: Text('Đã sao chép email')),
-                                                      );
-                                                    },
-                                                    tooltip: 'Sao chép email',
-                                                    padding: EdgeInsets.zero,
-                                                    constraints: const BoxConstraints(),
-                                                  ),
-                                                ],
-                                              ),
-                                              if (isAdmin)
-                                                Chip(
-                                                  label: const Text('Admin', style: TextStyle(fontSize: 10)),
-                                                  backgroundColor: Colors.orange[100],
-                                                  padding: EdgeInsets.zero,
-                                                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      data['classCode'] as String? ?? '-',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
-                                    ),
-                                  ),
-                                  DataCell(Text(name.isNotEmpty ? name : '-')),
-                                  DataCell(
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: SelectableText(
-                                            password,
-                                            style: const TextStyle(fontFamily: 'monospace'),
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(Icons.copy, size: 18),
-                                          onPressed: () {
-                                            // Copy password to clipboard
-                                            Clipboard.setData(ClipboardData(text: password));
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Đã sao chép mật khẩu')),
-                                            );
-                                          },
-                                          tooltip: 'Sao chép mật khẩu',
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Text(
-                                      createdAt != null
-                                          ? _formatDate(createdAt.toDate())
-                                          : '-',
-                                      style: const TextStyle(fontSize: 12),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: (data['isLogin'] ?? true) ? Colors.green[50] : Colors.red[50],
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: (data['isLogin'] ?? true) ? Colors.green[300]! : Colors.red[300]!,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        (data['isLogin'] ?? true) ? 'Hoạt động' : 'Đã khóa',
-                                        style: TextStyle(
-                                          color: (data['isLogin'] ?? true) ? Colors.green[700] : Colors.red[700],
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  DataCell(
-                                    isAdmin
-                                        ? const Text('-', style: TextStyle(color: Colors.grey))
-                                        : Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              IconButton(
-                                                icon: Icon(
-                                                  (data['isLogin'] ?? true) ? Icons.block : Icons.check_circle_outline,
-                                                  color: (data['isLogin'] ?? true) ? Colors.orange : Colors.green,
-                                                ),
-                                                onPressed: () => _toggleUserStatus(userId, data['isLogin'] ?? true),
-                                                tooltip: (data['isLogin'] ?? true) ? 'Vô hiệu hóa' : 'Kích hoạt',
-                                              ),
-                                              IconButton(
-                                                icon: const Icon(Icons.delete, color: Colors.red),
-                                                onPressed: () => _deleteUser(userId, email),
-                                                tooltip: 'Xóa tài khoản',
-                                              ),
-                                            ],
-                                          ),
-                                  ),
-                                ],
-                              );
-                            }).where((row) => row != null).cast<DataRow>().toList(),
-                          ),
-                        );
+                          });
                       },
+                      onTap: _selectedUserIds.isNotEmpty ? () {
+                        setState(() {
+                            if (isSelected) {
+                              _selectedUserIds.remove(userId);
+                            } else {
+                              _selectedUserIds.add(userId);
+                            }
+                          });
+                      } : null,
+                      borderRadius: BorderRadius.circular(12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 20,
+                                  child: Text(name.isNotEmpty ? name[0].toUpperCase() : email[0].toUpperCase()),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                      Text(email, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected) const Icon(Icons.check_circle, color: Colors.blue),
+                              ],
+                            ),
+                            const Divider(height: 24),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Chip(
+                                  label: Text('Lớp: $classCode'),
+                                  backgroundColor: Colors.blue[50], 
+                                  labelStyle: TextStyle(color: Colors.blue[800], fontSize: 12),
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(isLogin ? Icons.block : Icons.check_circle_outline, color: isLogin ? Colors.orange : Colors.green),
+                                      onPressed: () => _toggleUserStatus(userId, isLogin),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _deleteUser(userId, email),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopContent(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Users List
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Danh sách người dùng',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                    ),
+                    if (_selectedUserIds.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: Text(
+                          'Đã chọn: ${_selectedUserIds.length}',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ElevatedButton.icon(
+                      onPressed: _showCreateClassDialog,
+                      icon: const Icon(Icons.add_home_work),
+                      label: const Text('Tạo lớp mới'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueGrey,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () => _showCreateUserDialog(context),
+                      icon: const Icon(Icons.person_add),
+                      label: const Text('Thêm tài khoản mới'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: () => _showCreateBulkUsersDialog(context),
+                      icon: const Icon(Icons.batch_prediction),
+                      label: const Text('Thêm nhiều tài khoản'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 16),
+                // Filter và Copy All
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 250,
+                      child: TextField(
+                        controller: _filterController,
+                        decoration: InputDecoration(
+                          labelText: 'Tìm kiếm',
+                          hintText: 'Email, Tên...',
+                          prefixIcon: const Icon(Icons.search, size: 18),
+                          suffixIcon: _filterController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  onPressed: () {
+                                    _filterController.clear();
+                                    setState(() {});
+                                  },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          isDense: true,
+                        ),
+                        style: const TextStyle(fontSize: 14),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 180,
+                      child: TextField(
+                        controller: _prefixFilterController,
+                        decoration: InputDecoration(
+                          labelText: 'Tiền tố email',
+                          hintText: 'VD: user...',
+                          prefixIcon: const Icon(Icons.filter_alt, size: 18),
+                          suffixIcon: _prefixFilterController.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  onPressed: () {
+                                    _prefixFilterController.clear();
+                                    setState(() {});
+                                  },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          isDense: true,
+                        ),
+                        style: const TextStyle(fontSize: 14),
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ),
+                    // Date picker - Từ ngày
+                    SizedBox(
+                      width: 140,
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _startDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now(),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              _startDate = picked;
+                            });
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today, size: 16),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  _startDate != null
+                                      ? _formatDateOnly(_startDate!)
+                                      : 'Từ ngày',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _startDate != null ? Colors.black : Colors.grey[600],
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (_startDate != null)
+                                IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  onPressed: () {
+                                    setState(() {
+                                      _startDate = null;
+                                    });
+                                  },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Date picker - Đến ngày
+                    SizedBox(
+                      width: 140,
+                      child: InkWell(
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _endDate ?? DateTime.now(),
+                            firstDate: _startDate ?? DateTime(2020),
+                            lastDate: DateTime.now(),
+                          );
+                          if (picked != null) {
+                            setState(() {
+                              _endDate = picked;
+                            });
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today, size: 16),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  _endDate != null
+                                      ? _formatDateOnly(_endDate!)
+                                      : 'Đến ngày',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: _endDate != null ? Colors.black : Colors.grey[600],
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (_endDate != null)
+                                IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  onPressed: () {
+                                    setState(() {
+                                      _endDate = null;
+                                    });
+                                  },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _selectedUserIds.isEmpty
+                          ? null
+                          : _copyAllSelectedAccountsFromIds,
+                      icon: const Icon(Icons.copy_all),
+                      label: const Text('Copy All'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _selectedUserIds.isEmpty
+                          ? null
+                          : () => _toggleMultipleUsersStatus(true),
+                      icon: const Icon(Icons.block),
+                      label: const Text('Vô hiệu hóa'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _selectedUserIds.isEmpty
+                          ? null
+                          : () => _showChangeClassDialog(context),
+                      icon: const Icon(Icons.drive_file_move_outline),
+                      label: const Text('Chuyển lớp'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('users')
+                      .orderBy('createdAt', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Text('Lỗi: ${snapshot.error}');
+                    }
+
+                    if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(),
+                      );
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Text(
+                          'Chưa có người dùng nào',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      );
+                    }
+
+                    // Filter users
+                    final filterText = _filterController.text.toLowerCase();
+                    final prefixFilter = _prefixFilterController.text.toLowerCase();
+                    final filteredDocs = snapshot.data!.docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      // Lấy email từ userEmail hoặc email (fallback)
+                      final email = ((data['userEmail'] as String? ?? '').isEmpty
+                          ? (data['email'] as String? ?? '')
+                          : (data['userEmail'] as String? ?? '')).toLowerCase();
+                      final name = (data['userName'] as String? ?? '').toLowerCase();
+                      final createdAt = data['createdAt'] as Timestamp?;
+                      
+                      // Bỏ qua các document không có email
+                      if (email.isEmpty) {
+                        return false;
+                      }
+                      
+                      // Bỏ qua tài khoản admin
+                      if (email == 'adminchi@gmail.com') {
+                        return false;
+                      }
+                      
+                      // Filter theo tìm kiếm (email hoặc tên)
+                      bool matchesSearch = true;
+                      if (filterText.isNotEmpty) {
+                        matchesSearch = email.contains(filterText) || name.contains(filterText);
+                      }
+                      
+                      // Filter theo tiền tố email
+                      bool matchesPrefix = true;
+                      if (prefixFilter.isNotEmpty) {
+                        // Lấy phần trước @ của email để so sánh tiền tố
+                        final emailPrefix = email.split('@').first;
+                        matchesPrefix = emailPrefix.startsWith(prefixFilter);
+                      }
+                      
+                      // Filter theo ngày tạo
+                      bool matchesDate = true;
+                      if (createdAt != null) {
+                        final createdDate = createdAt.toDate();
+                        if (_startDate != null) {
+                          // So sánh từ đầu ngày (00:00:00)
+                          final startOfDay = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
+                          matchesDate = matchesDate && createdDate.isAfter(startOfDay.subtract(const Duration(days: 1)));
+                        }
+                        if (_endDate != null) {
+                          // So sánh đến cuối ngày (23:59:59)
+                          final endOfDay = DateTime(_endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59);
+                          matchesDate = matchesDate && createdDate.isBefore(endOfDay.add(const Duration(seconds: 1)));
+                        }
+                      } else {
+                        // Nếu không có createdAt và có filter date thì không match
+                        if (_startDate != null || _endDate != null) {
+                          matchesDate = false;
+                        }
+                      }
+                      
+                      return matchesSearch && matchesPrefix && matchesDate;
+                    }).toList();
+
+                    if (filteredDocs.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(24.0),
+                        child: Text(
+                          'Không tìm thấy người dùng nào',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      );
+                    }
+
+                    // Check if all filtered users are selected
+                    final allFilteredSelected = filteredDocs.isNotEmpty &&
+                        filteredDocs.every((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          // Lấy userId từ field hoặc document ID
+                          final userId = (data['userId'] as String? ?? '').isEmpty 
+                              ? doc.id 
+                              : (data['userId'] as String? ?? '');
+                          return userId.isNotEmpty && _selectedUserIds.contains(userId);
+                        });
+
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        columns: [
+                          DataColumn(
+                            label: Checkbox(
+                              value: allFilteredSelected,
+                              onChanged: (value) {
+                                setState(() {
+                                  if (value == true) {
+                                    // Select all filtered users
+                                    for (var doc in filteredDocs) {
+                                      final data = doc.data() as Map<String, dynamic>;
+                                      // Lấy userId từ field hoặc document ID
+                                      final userId = (data['userId'] as String? ?? '').isEmpty 
+                                          ? doc.id 
+                                          : (data['userId'] as String? ?? '');
+                                      if (userId.isNotEmpty) {
+                                        _selectedUserIds.add(userId);
+                                      }
+                                    }
+                                  } else {
+                                    // Deselect all filtered users
+                                    for (var doc in filteredDocs) {
+                                      final data = doc.data() as Map<String, dynamic>;
+                                      // Lấy userId từ field hoặc document ID
+                                      final userId = (data['userId'] as String? ?? '').isEmpty 
+                                          ? doc.id 
+                                          : (data['userId'] as String? ?? '');
+                                      _selectedUserIds.remove(userId);
+                                    }
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                          const DataColumn(label: Text('Email', style: TextStyle(fontWeight: FontWeight.bold))),
+                          const DataColumn(label: Text('Mã lớp', style: TextStyle(fontWeight: FontWeight.bold))),
+                          const DataColumn(label: Text('Tên', style: TextStyle(fontWeight: FontWeight.bold))),
+                          const DataColumn(label: Text('Mật khẩu', style: TextStyle(fontWeight: FontWeight.bold))),
+                          const DataColumn(label: Text('Ngày tạo', style: TextStyle(fontWeight: FontWeight.bold))),
+                          const DataColumn(label: Text('Trạng thái', style: TextStyle(fontWeight: FontWeight.bold))),
+                          const DataColumn(label: Text('Thao tác', style: TextStyle(fontWeight: FontWeight.bold))),
+                        ],
+                        rows: filteredDocs.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          // Lấy userId từ field hoặc document ID
+                          final userId = (data['userId'] as String? ?? '').isEmpty 
+                              ? doc.id 
+                              : (data['userId'] as String? ?? '');
+                          // Lấy email từ userEmail hoặc email (fallback)
+                          final email = (data['userEmail'] as String? ?? '').isEmpty
+                              ? (data['email'] as String? ?? '')
+                              : (data['userEmail'] as String? ?? '');
+                          final name = data['userName'] as String? ?? '';
+                          final password = data['password'] as String? ?? '';
+                          final createdAt = data['createdAt'] as Timestamp?;
+                          final isAdmin = email.toLowerCase() == 'adminchi@gmail.com';
+
+                          // Bỏ qua các document không có email hoặc userId hợp lệ
+                          if (email.isEmpty || userId.isEmpty) {
+                            return null;
+                          }
+
+                          final isSelected = _selectedUserIds.contains(userId);
+
+                          return DataRow(
+                            selected: isSelected,
+                            cells: [
+                              DataCell(
+                                Checkbox(
+                                  value: isSelected,
+                                  onChanged: isAdmin
+                                      ? null
+                                      : (value) {
+                                          setState(() {
+                                            if (value == true) {
+                                              _selectedUserIds.add(userId);
+                                            } else {
+                                              _selectedUserIds.remove(userId);
+                                            }
+                                          });
+                                        },
+                                ),
+                              ),
+                              DataCell(
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 16,
+                                      child: Text(
+                                        name.isNotEmpty
+                                            ? name[0].toUpperCase()
+                                            : email.isNotEmpty
+                                                ? email[0].toUpperCase()
+                                                : '?',
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: SelectableText(
+                                                  email,
+                                                  style: const TextStyle(fontFamily: 'monospace'),
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.copy, size: 18),
+                                                onPressed: () {
+                                                  Clipboard.setData(ClipboardData(text: email));
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    const SnackBar(content: Text('Đã sao chép email')),
+                                                  );
+                                                },
+                                                tooltip: 'Sao chép email',
+                                                padding: EdgeInsets.zero,
+                                                constraints: const BoxConstraints(),
+                                              ),
+                                            ],
+                                          ),
+                                          if (isAdmin)
+                                            Chip(
+                                              label: const Text('Admin', style: TextStyle(fontSize: 10)),
+                                              backgroundColor: Colors.orange[100],
+                                              padding: EdgeInsets.zero,
+                                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  data['classCode'] as String? ?? '-',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+                                ),
+                              ),
+                              DataCell(Text(name.isNotEmpty ? name : '-')),
+                              DataCell(
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: SelectableText(
+                                        password,
+                                        style: const TextStyle(fontFamily: 'monospace'),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.copy, size: 18),
+                                      onPressed: () {
+                                        // Copy password to clipboard
+                                        Clipboard.setData(ClipboardData(text: password));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Đã sao chép mật khẩu')),
+                                        );
+                                      },
+                                      tooltip: 'Sao chép mật khẩu',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  createdAt != null
+                                      ? _formatDate(createdAt.toDate())
+                                      : '-',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ),
+                              DataCell(
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: (data['isLogin'] ?? true) ? Colors.green[50] : Colors.red[50],
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: (data['isLogin'] ?? true) ? Colors.green[300]! : Colors.red[300]!,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    (data['isLogin'] ?? true) ? 'Hoạt động' : 'Đã khóa',
+                                    style: TextStyle(
+                                      color: (data['isLogin'] ?? true) ? Colors.green[700] : Colors.red[700],
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                isAdmin
+                                    ? const Text('-', style: TextStyle(color: Colors.grey))
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(
+                                              (data['isLogin'] ?? true) ? Icons.block : Icons.check_circle_outline,
+                                              color: (data['isLogin'] ?? true) ? Colors.orange : Colors.green,
+                                            ),
+                                            onPressed: () => _toggleUserStatus(userId, data['isLogin'] ?? true),
+                                            tooltip: (data['isLogin'] ?? true) ? 'Vô hiệu hóa' : 'Kích hoạt',
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.delete, color: Colors.red),
+                                            onPressed: () => _deleteUser(userId, email),
+                                            tooltip: 'Xóa tài khoản',
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                            ],
+                          );
+                        }).where((row) => row != null).cast<DataRow>().toList(),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 

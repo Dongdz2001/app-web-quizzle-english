@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/vocab_provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -21,9 +22,37 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
+  bool _rememberMe = false;
 
   // Admin email mặc định
   static const String adminEmail = 'adminchi@gmail.com';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedLoginInfo();
+  }
+
+  Future<void> _loadSavedLoginInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _rememberMe = prefs.getBool('remember_me') ?? false;
+      if (_rememberMe) {
+        _emailController.text = prefs.getString('saved_email') ?? '';
+      }
+    });
+  }
+
+  Future<void> _saveLoginInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await prefs.setBool('remember_me', true);
+      await prefs.setString('saved_email', _emailController.text.trim());
+    } else {
+      await prefs.remove('remember_me');
+      await prefs.remove('saved_email');
+    }
+  }
 
   @override
   void dispose() {
@@ -101,6 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // Điều hướng dựa trên role
       if (isAdmin) {
+        await _saveLoginInfo();
         if (mounted) {
           Navigator.of(context).pushReplacementNamed('/admin');
         }
@@ -113,6 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
           });
           return;
         }
+        await _saveLoginInfo();
         if (mounted) {
           Navigator.of(context).pushReplacementNamed('/');
         }
@@ -212,13 +243,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Logo/Title
                   Icon(
-                    widget.isAdminLogin ? Icons.admin_panel_settings : Icons.school,
+                    widget.isAdminLogin ? Icons.supervisor_account : Icons.school,
                     size: 80,
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    widget.isAdminLogin ? 'Admin Login' : 'Quizzle English',
+                    widget.isAdminLogin ? 'Đăng nhập Admin' : 'Quizzle English',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
@@ -305,7 +336,22 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
+
+                  // Remember me checkbox
+                  CheckboxListTile(
+                    value: _rememberMe,
+                    onChanged: (value) {
+                      setState(() {
+                        _rememberMe = value ?? false;
+                      });
+                    },
+                    title: const Text('Ghi nhớ đăng nhập', style: TextStyle(fontSize: 14)),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 8),
 
                   // Error message
                   if (_errorMessage != null)

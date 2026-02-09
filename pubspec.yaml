@@ -44,6 +44,8 @@ dependencies:
   cloud_firestore: ^5.4.3
   firebase_auth: ^5.3.1
   cloud_functions: ^5.1.2
+  flutter_web_plugins:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:
@@ -55,6 +57,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -71,6 +74,8 @@ flutter:
     - assets/cloud.png
     - assets/cloud_center.png
     - assets/label.png
+    - assets/icon.png
+    - assets/icon_crop.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -97,3 +102,14 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon_crop.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/icon_crop.png"
+    background_color: "#ffffff"
+    theme_color: "#ffffff"

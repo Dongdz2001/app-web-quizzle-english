@@ -11,11 +11,11 @@ class AppColors {
   static const Color accent = Color(0xFFEC4899); // Hồng điểm nhấn
 
   // Màu nền
-  static const Color scaffoldBackground = Color(0xFFF5F7FB);
+  static const Color scaffoldBackground = Colors.white;
   static const Color cardBackground = Colors.white;
 
   // Màu text cơ bản
-  static const Color textPrimary = Color(0xFF111827);
+  static const Color textPrimary = Colors.black;
   static const Color textSecondary = Color(0xFF4B5563);
 }
 
