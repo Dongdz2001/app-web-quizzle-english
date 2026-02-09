@@ -16,30 +16,47 @@ class AddEditWordDialog extends StatefulWidget {
 class _AddEditWordDialogState extends State<AddEditWordDialog> {
   late TextEditingController _wordController;
   late TextEditingController _meaningController;
-  late TextEditingController _wordFormController;
   late TextEditingController _englishDefController;
   late TextEditingController _synonymController;
   late TextEditingController _antonymController;
+  late TextEditingController _nounController;
+  late TextEditingController _verbController;
+  late TextEditingController _adjController;
+  late TextEditingController _advController;
+  late TextEditingController _vEdController;
+  late TextEditingController _vIngController;
+  late TextEditingController _vSesController;
 
   /// Mobile: ẩn các field tùy chọn trong phần thu gọn để dialog gọn, không mất chữ
   bool _showExtraFields = false;
-
-  final _wordFormOptions = ['noun', 'verb', 'adjective', 'adverb', 'phrase'];
 
   @override
   void initState() {
     super.initState();
     _wordController = TextEditingController(text: widget.word.word);
     _meaningController = TextEditingController(text: widget.word.meaning);
-    _wordFormController = TextEditingController(text: widget.word.wordForm);
     _englishDefController = TextEditingController(text: widget.word.englishDefinition ?? '');
     _synonymController = TextEditingController(text: widget.word.synonym ?? '');
     _antonymController = TextEditingController(text: widget.word.antonym ?? '');
+    _nounController = TextEditingController(text: widget.word.noun ?? '');
+    _verbController = TextEditingController(text: widget.word.verb ?? '');
+    _adjController = TextEditingController(text: widget.word.adjective ?? '');
+    _advController = TextEditingController(text: widget.word.adverb ?? '');
+    _vEdController = TextEditingController(text: widget.word.vEd ?? '');
+    _vIngController = TextEditingController(text: widget.word.vIng ?? '');
+    _vSesController = TextEditingController(text: widget.word.vSes ?? '');
+
     // Khi sửa và đã có dữ liệu tùy chọn → mở sẵn phần thêm thông tin
-    final hasExtra = widget.word.wordForm.isNotEmpty ||
-        (widget.word.englishDefinition ?? '').isNotEmpty ||
+    final hasExtra = (widget.word.englishDefinition ?? '').isNotEmpty ||
         (widget.word.synonym ?? '').isNotEmpty ||
-        (widget.word.antonym ?? '').isNotEmpty;
+        (widget.word.antonym ?? '').isNotEmpty ||
+        (widget.word.noun ?? '').isNotEmpty ||
+        (widget.word.verb ?? '').isNotEmpty ||
+        (widget.word.adjective ?? '').isNotEmpty ||
+        (widget.word.adverb ?? '').isNotEmpty ||
+        (widget.word.vEd ?? '').isNotEmpty ||
+        (widget.word.vIng ?? '').isNotEmpty ||
+        (widget.word.vSes ?? '').isNotEmpty;
     _showExtraFields = hasExtra;
   }
 
@@ -47,10 +64,16 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
   void dispose() {
     _wordController.dispose();
     _meaningController.dispose();
-    _wordFormController.dispose();
     _englishDefController.dispose();
     _synonymController.dispose();
     _antonymController.dispose();
+    _nounController.dispose();
+    _verbController.dispose();
+    _adjController.dispose();
+    _advController.dispose();
+    _vEdController.dispose();
+    _vIngController.dispose();
+    _vSesController.dispose();
     super.dispose();
   }
 
@@ -113,6 +136,7 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
                   context,
                   spacing,
                   isMobile,
+                  screenWidth,
                   _showExtraFields,
                 ),
               ),
@@ -126,7 +150,8 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
   List<Widget> _buildFormFields(
     BuildContext context,
     double spacing,
-    bool isMobile, [
+    bool isMobile,
+    double screenWidth, [
     bool showExtra = true,
   ]) {
     final theme = Theme.of(context);
@@ -175,7 +200,7 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
       TextField(
         controller: _meaningController,
         decoration: _fieldDecoration(
-          label: 'Meaning (Nghĩa tiếng Việt) *',
+          label: 'Meaning (Nghĩa tiếng Việt)', // Bỏ bắt buộc nhập meaning theo yêu cầu mới là chỉ bắt buộc Word
           hint: isMobile ? 'VD: mẹ' : 'VD: mẹ, gia đình, sự nghiệp...',
         ),
       ),
@@ -196,42 +221,85 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
 
     fields.addAll([
       SizedBox(height: spacing),
-      DropdownButtonFormField<String>(
-        initialValue: _wordFormOptions.contains(_wordFormController.text) &&
-                _wordFormController.text.isNotEmpty
-            ? _wordFormController.text
-            : null,
-        decoration: _fieldDecoration(label: 'Word form'),
-        items: _wordFormOptions
-            .where((e) => e.isNotEmpty)
-            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-            .toList(),
-        onChanged: (v) => setState(() => _wordFormController.text = v ?? ''),
-      ),
-      SizedBox(height: spacing),
       TextField(
         controller: _englishDefController,
         decoration: _fieldDecoration(
           label: 'Nhập phiên âm (Tùy chọn)',
           hint: isMobile ? '' : 'VD: /twɪn/, phiên âm IPA...',
         ),
-        maxLines: isMobile ? 2 : 3,
       ),
       SizedBox(height: spacing),
-      TextField(
-        controller: _synonymController,
-        decoration: _fieldDecoration(
-          label: isMobile ? 'Synonym' : 'Synonym - Từ đồng nghĩa (Tùy chọn)',
-          hint: isMobile ? '' : 'VD: mom, household, profession...',
-        ),
+      Text('Các loại từ (Tùy chọn)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+      const SizedBox(height: 4),
+      Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: [
+          SizedBox(
+            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            child: TextField(controller: _nounController, decoration: _fieldDecoration(label: 'Danh từ')),
+          ),
+          SizedBox(
+            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            child: TextField(controller: _verbController, decoration: _fieldDecoration(label: 'Động từ')),
+          ),
+          SizedBox(
+            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            child: TextField(controller: _adjController, decoration: _fieldDecoration(label: 'Tính từ')),
+          ),
+          SizedBox(
+            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            child: TextField(controller: _advController, decoration: _fieldDecoration(label: 'Trạng từ')),
+          ),
+        ],
       ),
       SizedBox(height: spacing),
-      TextField(
-        controller: _antonymController,
-        decoration: _fieldDecoration(
-          label: isMobile ? 'Antonym' : 'Antonym - Từ trái nghĩa (Tùy chọn)',
-          hint: isMobile ? '' : 'VD: father, children, boss...',
-        ),
+      Text('Dạng của động từ (Tùy chọn)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey[600])),
+      const SizedBox(height: 4),
+      Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: [
+          SizedBox(
+            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            child: TextField(controller: _vEdController, decoration: _fieldDecoration(label: 'V-ed')),
+          ),
+          SizedBox(
+            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            child: TextField(controller: _vIngController, decoration: _fieldDecoration(label: 'V-ing')),
+          ),
+          SizedBox(
+            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            child: TextField(controller: _vSesController, decoration: _fieldDecoration(label: 'V-s/es')),
+          ),
+        ],
+      ),
+      SizedBox(height: spacing),
+      Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: [
+          SizedBox(
+            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            child: TextField(
+              controller: _synonymController,
+              decoration: _fieldDecoration(
+                label: isMobile ? 'Synonym' : 'Synonym (Từ đồng nghĩa)',
+                hint: isMobile ? '' : 'VD: mom, household...',
+              ),
+            ),
+          ),
+          SizedBox(
+            width: isMobile ? (screenWidth - 40) / 2 : 230,
+            child: TextField(
+              controller: _antonymController,
+              decoration: _fieldDecoration(
+                label: isMobile ? 'Antonym' : 'Antonym (Từ trái nghĩa)',
+                hint: isMobile ? '' : 'VD: father, children...',
+              ),
+            ),
+          ),
+        ],
       ),
     ]);
     return fields;
@@ -240,9 +308,9 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
   void _onSave() {
     final word = _wordController.text.trim();
     final meaning = _meaningController.text.trim();
-    if (word.isEmpty || meaning.isEmpty) {
+    if (word.isEmpty) { // Chỉ bắt buộc nhập Word
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập Word và Meaning')),
+        const SnackBar(content: Text('Vui lòng nhập Word')),
       );
       return;
     }
@@ -251,7 +319,14 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
       widget.word.copyWith(
         word: word,
         meaning: meaning,
-        wordForm: _wordFormController.text.trim(),
+        wordForm: '',
+        noun: _nounController.text.trim().isEmpty ? null : _nounController.text.trim(),
+        verb: _verbController.text.trim().isEmpty ? null : _verbController.text.trim(),
+        adjective: _adjController.text.trim().isEmpty ? null : _adjController.text.trim(),
+        adverb: _advController.text.trim().isEmpty ? null : _advController.text.trim(),
+        vEd: _vEdController.text.trim().isEmpty ? null : _vEdController.text.trim(),
+        vIng: _vIngController.text.trim().isEmpty ? null : _vIngController.text.trim(),
+        vSes: _vSesController.text.trim().isEmpty ? null : _vSesController.text.trim(),
         englishDefinition: _englishDefController.text.trim().isEmpty
             ? null
             : _englishDefController.text.trim(),

@@ -259,24 +259,48 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                 color: Colors.indigo,
               ),
 
-              // Word Form (Loại từ)
-              if (word.wordForm != null && word.wordForm?.isNotEmpty == true)
+              // Word forms (N, V, Adj, Adv)
+              if ((word.noun ?? '').isNotEmpty || 
+                  (word.verb ?? '').isNotEmpty || 
+                  (word.adjective ?? '').isNotEmpty || 
+                  (word.adverb ?? '').isNotEmpty)
                 _buildDetailInfoItem(
                   context,
-                  label: 'Loại từ',
-                  content: word.wordForm!,
+                  label: 'Loại từ & Từ loại khác',
+                  content: [
+                    if ((word.noun ?? '').isNotEmpty) "Noun: ${word.noun}",
+                    if ((word.verb ?? '').isNotEmpty) "Verb: ${word.verb}",
+                    if ((word.adjective ?? '').isNotEmpty) "Adj: ${word.adjective}",
+                    if ((word.adverb ?? '').isNotEmpty) "Adv: ${word.adverb}",
+                  ].join('\n'),
                   icon: Icons.category,
                   color: Colors.orange,
+                ),
+
+              // Verb forms (v-ed, v-ing, v-s/es)
+              if ((word.vEd ?? '').isNotEmpty || 
+                  (word.vIng ?? '').isNotEmpty || 
+                  (word.vSes ?? '').isNotEmpty)
+                _buildDetailInfoItem(
+                  context,
+                  label: 'Dạng của động từ',
+                  content: [
+                    if ((word.vEd ?? '').isNotEmpty) "V-ed: ${word.vEd}",
+                    if ((word.vIng ?? '').isNotEmpty) "V-ing: ${word.vIng}",
+                    if ((word.vSes ?? '').isNotEmpty) "V-s/es: ${word.vSes}",
+                  ].join('\n'),
+                  icon: Icons.extension,
+                  color: Colors.teal,
                 ),
 
               // English Definition
               if (word.englishDefinition != null && word.englishDefinition!.isNotEmpty)
                 _buildDetailInfoItem(
                   context,
-                  label: 'Định nghĩa (English)',
+                  label: 'Phiên âm',
                   content: word.englishDefinition!,
                   backgroundColor: Colors.blue[50], // Highlight
-                  icon: Icons.menu_book,
+                  icon: Icons.phonelink_ring,
                   color: Colors.blue,
                 ),
                 

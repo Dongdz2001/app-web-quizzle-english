@@ -5,7 +5,17 @@ class Vocabulary {
   final String id;
   String word;
   String meaning;
-  String wordForm; // noun, verb, adj, adv...
+  String wordForm; // base (legacy/fallback)
+  
+  // New granular word forms
+  String? noun;
+  String? verb;
+  String? adjective;
+  String? adverb;
+  String? vEd;
+  String? vIng;
+  String? vSes;
+
   String? englishDefinition;
   String? synonym; // từ đồng nghĩa (closest)
   String? antonym; // từ trái nghĩa (opposite)
@@ -21,6 +31,13 @@ class Vocabulary {
     required this.word,
     required this.meaning,
     this.wordForm = '',
+    this.noun,
+    this.verb,
+    this.adjective,
+    this.adverb,
+    this.vEd,
+    this.vIng,
+    this.vSes,
     this.englishDefinition,
     this.synonym,
     this.antonym,
@@ -35,6 +52,13 @@ class Vocabulary {
     String? word,
     String? meaning,
     String? wordForm,
+    String? noun,
+    String? verb,
+    String? adjective,
+    String? adverb,
+    String? vEd,
+    String? vIng,
+    String? vSes,
     String? englishDefinition,
     String? synonym,
     String? antonym,
@@ -48,6 +72,13 @@ class Vocabulary {
       word: word ?? this.word,
       meaning: meaning ?? this.meaning,
       wordForm: wordForm ?? this.wordForm,
+      noun: noun ?? this.noun,
+      verb: verb ?? this.verb,
+      adjective: adjective ?? this.adjective,
+      adverb: adverb ?? this.adverb,
+      vEd: vEd ?? this.vEd,
+      vIng: vIng ?? this.vIng,
+      vSes: vSes ?? this.vSes,
       englishDefinition: englishDefinition ?? this.englishDefinition,
       synonym: synonym ?? this.synonym,
       antonym: antonym ?? this.antonym,
@@ -64,6 +95,13 @@ class Vocabulary {
       'word': word,
       'meaning': meaning,
       'wordForm': wordForm,
+      'noun': noun,
+      'verb': verb,
+      'adjective': adjective,
+      'adverb': adverb,
+      'vEd': vEd,
+      'vIng': vIng,
+      'vSes': vSes,
       'englishDefinition': englishDefinition,
       'synonym': synonym,
       'antonym': antonym,
@@ -80,6 +118,13 @@ class Vocabulary {
       'word': word,
       'meaning': meaning,
       'wordForm': wordForm,
+      'noun': noun,
+      'verb': verb,
+      'adjective': adjective,
+      'adverb': adverb,
+      'vEd': vEd,
+      'vIng': vIng,
+      'vSes': vSes,
       'englishDefinition': englishDefinition,
       'synonym': synonym,
       'antonym': antonym,
@@ -96,6 +141,13 @@ class Vocabulary {
       word: json['word'] as String,
       meaning: json['meaning'] as String,
       wordForm: json['wordForm'] as String? ?? '',
+      noun: json['noun'] as String?,
+      verb: json['verb'] as String?,
+      adjective: json['adjective'] as String?,
+      adverb: json['adverb'] as String?,
+      vEd: json['vEd'] as String?,
+      vIng: json['vIng'] as String?,
+      vSes: json['vSes'] as String?,
       englishDefinition: json['englishDefinition'] as String?,
       synonym: json['synonym'] as String?,
       antonym: json['antonym'] as String?,
@@ -127,6 +179,13 @@ class Vocabulary {
       word: json['word'] as String,
       meaning: json['meaning'] as String,
       wordForm: json['wordForm'] as String? ?? '',
+      noun: json['noun'] as String?,
+      verb: json['verb'] as String?,
+      adjective: json['adjective'] as String?,
+      adverb: json['adverb'] as String?,
+      vEd: json['vEd'] as String?,
+      vIng: json['vIng'] as String?,
+      vSes: json['vSes'] as String?,
       englishDefinition: json['englishDefinition'] as String?,
       synonym: json['synonym'] as String?,
       antonym: json['antonym'] as String?,
