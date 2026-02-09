@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 
+import '../models/topic.dart';
 import '../models/vocabulary.dart';
 import '../providers/vocab_provider.dart';
 import '../utils/web_speech_stub.dart'
@@ -135,7 +137,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
           extendBodyBehindAppBar: kIsWeb,
           appBar: hideAppBarInLandscape
               ? null
-              : _buildAppBar(context, topic.name, topicId, topic.words.isEmpty),
+              : _buildAppBar(context, topic, topicId),
           body: Stack(
             children: [
               if (kIsWeb)
@@ -550,10 +552,10 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
 
   PreferredSizeWidget _buildAppBar(
     BuildContext context,
-    String topicName,
+    Topic topic,
     String topicId,
-    bool wordsEmpty,
   ) {
+    final wordsEmpty = topic.words.isEmpty;
     return AppBar(
       backgroundColor: kIsWeb ? Colors.transparent : null,
       elevation: kIsWeb ? 0 : null,
@@ -562,6 +564,11 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
         onPressed: () => Navigator.pop(context),
       ),
       actions: [
+        IconButton(
+          icon: const Icon(Icons.bar_chart),
+          tooltip: 'Thống kê đóng góp',
+          onPressed: () => _showTopicStatsDialog(context, topic),
+        ),
         IconButton(
           icon: const Icon(Icons.school_outlined),
           tooltip: 'Học',
@@ -590,6 +597,176 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _showTopicStatsDialog(BuildContext context, Topic topic) async {
+    showDialog(
+      context: context,
+      builder: (ctx) => FutureBuilder<List<Map<String, dynamic>>>(
+        future: _loadTopicContributions(topic),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return AlertDialog(
+              content: const SizedBox(
+                width: 320,
+                height: 200,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            );
+          }
+          if (snapshot.hasError) {
+            return AlertDialog(
+              title: const Text('Lỗi'),
+              content: Text('Không thể tải thống kê: ${snapshot.error}'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Đóng'),
+                ),
+              ],
+            );
+          }
+
+          final data = snapshot.data ?? [];
+          final maxCount = data.isEmpty ? 1 : data.map((e) => e['count'] as int).fold(0, (a, b) => a > b ? a : b);
+          final maxWords = maxCount > 0 ? maxCount : 1;
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.bar_chart, color: Colors.blue),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Đóng góp trong ${topic.name}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(ctx).size.width.clamp(320, 520),
+              height: MediaQuery.of(ctx).size.height.clamp(220, 500),
+              child: data.isEmpty
+                  ? Center(
+                      child: Text(
+                        topic.classCode != null && topic.classCode!.isNotEmpty
+                            ? 'Chưa có đóng góp nào trong topic này.'
+                            : 'Topic này chưa có classCode để thống kê theo lớp.',
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  : SizedBox(
+                      width: (64 * data.length.clamp(0, 10)).toDouble(),
+                      height: 260,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: data.take(10).map((e) {
+                          final name = e['name'] as String? ?? '?';
+                          final count = e['count'] as int;
+                          final ratio = count / maxWords;
+                          final barHeight = (160 * ratio).clamp(count > 0 ? 6.0 : 0.0, 160.0);
+                          final words = (name).split(' ');
+                          final lines = <String>[];
+                          for (var i = 0; i < words.length; i += 2) {
+                            lines.add(words.skip(i).take(2).join(' '));
+                          }
+                          final nameDisplay = lines.join('\n');
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: SizedBox(
+                              width: 52,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '$count',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(ctx).colorScheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    width: 40,
+                                    height: barHeight,
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(ctx).colorScheme.primary.withOpacity(0.7),
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  SizedBox(
+                                    height: 36,
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Text(
+                                        nameDisplay,
+                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Đóng'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _loadTopicContributions(Topic topic) async {
+    final wordCountByUserId = <String, int>{};
+    final userIdToNameFromWords = <String, String>{};
+    for (final word in topic.words) {
+      final userId = word.createdBy?.userId;
+      if (userId != null) {
+        wordCountByUserId[userId] = (wordCountByUserId[userId] ?? 0) + 1;
+        if (!userIdToNameFromWords.containsKey(userId)) {
+          userIdToNameFromWords[userId] = word.createdBy?.userName ?? word.createdBy?.userEmail ?? userId;
+        }
+      }
+    }
+
+    if (topic.classCode == null || topic.classCode!.isEmpty) {
+      return wordCountByUserId.entries
+          .map((e) => {'name': userIdToNameFromWords[e.key] ?? e.key, 'count': e.value})
+          .toList()
+        ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    }
+
+    final usersSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('classCode', isEqualTo: topic.classCode)
+        .get();
+
+    final result = <Map<String, dynamic>>[];
+    for (final doc in usersSnapshot.docs) {
+      final data = doc.data();
+      final userId = doc.id;
+      final userName = data['userName'] as String? ?? data['userEmail'] as String? ?? 'Chưa có tên';
+      final count = wordCountByUserId[userId] ?? 0;
+      result.add({'name': userName, 'count': count});
+    }
+
+    result.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    return result;
   }
 
   Future<void> _showAddWordDialog(

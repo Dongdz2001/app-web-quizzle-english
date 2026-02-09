@@ -22,7 +22,8 @@ class ProgressScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (provider.topics.isEmpty) {
+          final topicsToShow = provider.filteredTopics;
+          if (topicsToShow.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -41,10 +42,13 @@ class ProgressScreen extends StatelessWidget {
           int totalCorrect = 0;
           int totalWrong = 0;
           int totalWords = 0;
-          for (final p in provider.progress.values) {
-            totalCorrect += p.correctCount;
-            totalWrong += p.wrongCount;
-            totalWords += p.totalWords;
+          for (final topic in topicsToShow) {
+            final p = provider.progress[topic.id];
+            if (p != null) {
+              totalCorrect += p.correctCount;
+              totalWrong += p.wrongCount;
+              totalWords += p.totalWords;
+            }
           }
           final totalAnswered = totalCorrect + totalWrong;
           final overallAccuracy = totalAnswered > 0 ? (totalCorrect / totalAnswered * 100).round() : 0;
@@ -109,7 +113,7 @@ class ProgressScreen extends StatelessWidget {
                         ),
                   ),
                   const SizedBox(height: 12),
-                  ...provider.topics.map((topic) {
+                  ...topicsToShow.map((topic) {
                     final progress = provider.progress[topic.id];
                     if (progress == null) return const SizedBox();
                     return Card(

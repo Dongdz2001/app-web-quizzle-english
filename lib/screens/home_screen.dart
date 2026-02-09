@@ -198,61 +198,71 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             content: SizedBox(
-              width: MediaQuery.of(ctx).size.width.clamp(280, 500),
-              height: MediaQuery.of(ctx).size.height.clamp(200, 500),
+              width: MediaQuery.of(ctx).size.width.clamp(300, 520),
+              height: MediaQuery.of(ctx).size.height.clamp(220, 500),
               child: students.isEmpty
                   ? const Center(child: Text('Chưa có học viên hoặc chưa có đóng góp trong lớp này.'))
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: students.length,
-                      itemBuilder: (_, i) {
-                        final name = students[i]['name'] as String? ?? 'Chưa có tên';
-                        final count = students[i]['count'] as int;
-                        final barWidth = count / maxWords;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  : SizedBox(
+                      width: (64 * students.length.clamp(0, 10)).toDouble(),
+                      height: 260,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: students.take(10).map((e) {
+                          final name = e['name'] as String? ?? '?';
+                          final count = e['count'] as int;
+                          final ratio = count / maxWords;
+                          final barHeight = (160 * ratio).clamp(count > 0 ? 6.0 : 0.0, 160.0);
+                          final words = (name).split(' ');
+                          final lines = <String>[];
+                          for (var i = 0; i < words.length; i += 2) {
+                            lines.add(words.skip(i).take(2).join(' '));
+                          }
+                          final nameDisplay = lines.join('\n');
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: SizedBox(
+                              width: 52,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      name,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
+                                  Text(
+                                    '$count',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(ctx).colorScheme.primary,
                                     ),
                                   ),
-                                  Text(
-                                    '$count từ',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Theme.of(ctx).colorScheme.primary,
-                                      fontWeight: FontWeight.w600,
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    width: 40,
+                                    height: barHeight,
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(ctx).colorScheme.primary.withOpacity(0.7),
+                                      borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  SizedBox(
+                                    height: 36,
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Text(
+                                        nameDisplay,
+                                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: LinearProgressIndicator(
-                                  value: barWidth,
-                                  backgroundColor: Colors.grey[200],
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Theme.of(ctx).colorScheme.primary,
-                                  ),
-                                  minHeight: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ),
             ),
             actions: [
