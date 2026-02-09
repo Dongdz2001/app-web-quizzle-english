@@ -30,7 +30,9 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.topic.name);
-    _descController = TextEditingController(text: widget.topic.description ?? '');
+    _descController = TextEditingController(
+      text: widget.topic.description ?? '',
+    );
     _selectedCategoryId = widget.topic.categoryId;
     _selectedGradeLevel = widget.topic.gradeLevel;
     _selectedClassCode = widget.topic.classCode;
@@ -72,9 +74,7 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
           maxHeight: screenSize.height * (isMobile ? 0.9 : 0.8),
         ),
         child: AntdCard(
-          title: Text(
-            widget.topic.name.isEmpty ? 'Thêm Topic' : 'Sửa Topic',
-          ),
+          title: Text(widget.topic.name.isEmpty ? 'Thêm Topic' : 'Sửa Topic'),
           footer: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -124,10 +124,13 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                     controller: _nameController,
                     enableSuggestions: false,
                     autocorrect: false,
-                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                    spellCheckConfiguration:
+                        const SpellCheckConfiguration.disabled(),
                     decoration: InputDecoration(
                       labelText: 'Tên Topic',
-                      hintText: isMobile ? 'VD: Gia đình' : 'VD: Gia đình, Công việc...',
+                      hintText: isMobile
+                          ? 'VD: Gia đình'
+                          : 'VD: Gia đình, Công việc...',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -138,7 +141,8 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                     controller: _descController,
                     enableSuggestions: false,
                     autocorrect: false,
-                    spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                    spellCheckConfiguration:
+                        const SpellCheckConfiguration.disabled(),
                     maxLines: isMobile ? 2 : 3,
                     decoration: InputDecoration(
                       labelText: 'Mô tả (tuỳ chọn)',
@@ -149,7 +153,7 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                   ),
                   SizedBox(height: spacing),
                   DropdownButtonFormField<String>(
-                    value: _selectedCategoryId,
+                    initialValue: _selectedCategoryId,
                     decoration: InputDecoration(
                       labelText: 'Nhóm',
                       border: OutlineInputBorder(
@@ -174,9 +178,8 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                           _selectedCategoryId = value;
                           if (value != CategoryIds.grade) {
                             _selectedGradeLevel = null;
-                          } else if (_selectedGradeLevel == null) {
-                            _selectedGradeLevel = 1;
-                          }
+                          } else
+                            _selectedGradeLevel ??= 1;
                         });
                       }
                     },
@@ -186,7 +189,7 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                     builder: (context, provider, _) {
                       if (provider.isAdmin) {
                         return DropdownButtonFormField<String?>(
-                          value: _selectedClassCode,
+                          initialValue: _selectedClassCode,
                           decoration: InputDecoration(
                             labelText: 'Giao cho lớp (Tất cả nếu trống)',
                             border: OutlineInputBorder(
@@ -198,10 +201,12 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                               value: null,
                               child: Text('Tất cả các lớp'),
                             ),
-                            ..._classes.map((c) => DropdownMenuItem(
-                                  value: c,
-                                  child: Text('Lớp $c'),
-                                )),
+                            ..._classes.map(
+                              (c) => DropdownMenuItem(
+                                value: c,
+                                child: Text('Lớp $c'),
+                              ),
+                            ),
                           ],
                           onChanged: (value) {
                             setState(() => _selectedClassCode = value);
@@ -212,7 +217,9 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                         _selectedClassCode = provider.userClassCode;
                         return Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 16),
+                            horizontal: 12,
+                            vertical: 16,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.grey[100],
                             borderRadius: BorderRadius.circular(12),
@@ -220,8 +227,11 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.class_outlined,
-                                  size: 20, color: Colors.grey),
+                              const Icon(
+                                Icons.class_outlined,
+                                size: 20,
+                                color: Colors.grey,
+                              ),
                               const SizedBox(width: 12),
                               Text(
                                 'Lớp học: ${provider.userClassCode ?? "Chung"}',
@@ -236,7 +246,7 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                   if (_selectedCategoryId == CategoryIds.grade) ...[
                     SizedBox(height: spacing),
                     DropdownButtonFormField<int>(
-                      value: _selectedGradeLevel,
+                      initialValue: _selectedGradeLevel,
                       decoration: InputDecoration(
                         labelText: 'Cấp độ lớp (1-12)',
                         border: OutlineInputBorder(

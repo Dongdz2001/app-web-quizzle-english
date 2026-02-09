@@ -154,6 +154,151 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _showClassListDialog(BuildContext context, VocabProvider provider) async {
+    final classCode = provider.adminViewingClassCode;
+    if (classCode == null || classCode.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => FutureBuilder<List<Map<String, dynamic>>>(
+        future: _loadClassStudentsWithContributions(classCode, provider),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return AlertDialog(
+              content: const SizedBox(
+                width: 300,
+                height: 200,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            );
+          }
+          if (snapshot.hasError) {
+            return AlertDialog(
+              title: const Text('Lỗi'),
+              content: Text('Không thể tải dữ liệu: ${snapshot.error}'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Đóng'),
+                ),
+              ],
+            );
+          }
+
+          final students = snapshot.data ?? [];
+          final maxCount = students.isEmpty ? 1 : students.map((s) => s['count'] as int).fold(0, (a, b) => a > b ? a : b);
+          final maxWords = maxCount > 0 ? maxCount : 1;
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.groups, color: Colors.blue),
+                const SizedBox(width: 8),
+                Text('Danh sách lớp $classCode'),
+              ],
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(ctx).size.width.clamp(280, 500),
+              height: MediaQuery.of(ctx).size.height.clamp(200, 500),
+              child: students.isEmpty
+                  ? const Center(child: Text('Chưa có học viên hoặc chưa có đóng góp trong lớp này.'))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: students.length,
+                      itemBuilder: (_, i) {
+                        final name = students[i]['name'] as String? ?? 'Chưa có tên';
+                        final count = students[i]['count'] as int;
+                        final barWidth = count / maxWords;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  Text(
+                                    '$count từ',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(ctx).colorScheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: barWidth,
+                                  backgroundColor: Colors.grey[200],
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Theme.of(ctx).colorScheme.primary,
+                                  ),
+                                  minHeight: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Đóng'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _loadClassStudentsWithContributions(
+    String classCode,
+    VocabProvider provider,
+  ) async {
+    final usersSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('classCode', isEqualTo: classCode)
+        .get();
+
+    final wordCountByUserId = <String, int>{};
+    for (final topic in provider.filteredTopics) {
+      for (final word in topic.words) {
+        final userId = word.createdBy?.userId;
+        if (userId != null) {
+          wordCountByUserId[userId] = (wordCountByUserId[userId] ?? 0) + 1;
+        }
+      }
+    }
+
+    final result = <Map<String, dynamic>>[];
+    for (final doc in usersSnapshot.docs) {
+      final data = doc.data();
+      final userId = doc.id;
+      final userName = data['userName'] as String? ?? data['userEmail'] as String? ?? 'Chưa có tên';
+      final count = wordCountByUserId[userId] ?? 0;
+      result.add({'name': userName, 'count': count});
+    }
+
+    result.sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    return result;
+  }
+
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -199,19 +344,30 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String?>(
                         value: provider.adminViewingClassCode,
-                        hint: const Text('Xem tất cả lớp', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                        dropdownColor: Theme.of(context).colorScheme.primary,
-                        icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                        hint: Text(
+                          'Xem tất cả lớp',
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        dropdownColor: Colors.white,
+                        icon: const Icon(Icons.arrow_drop_down, color: Colors.black87),
                         isExpanded: true,
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
                         items: [
                           const DropdownMenuItem<String?>(
                             value: null,
-                            child: Text('Tất cả các lớp'),
+                            child: Text('Tất cả các lớp', style: TextStyle(color: Colors.black87)),
                           ),
                           ...provider.availableClasses.map((c) => DropdownMenuItem(
                             value: c,
-                            child: Text('Lớp $c'),
+                            child: Text('Lớp $c', style: const TextStyle(color: Colors.black87)),
                           )),
                         ],
                         onChanged: (value) {
@@ -227,20 +383,47 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.analytics_outlined),
-            tooltip: 'Tiến trình',
-            onPressed: () => Navigator.pushNamed(context, '/progress'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Thông tin cá nhân',
-            onPressed: () => _showProfileDialog(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Đăng xuất',
-            onPressed: () => _showLogoutDialog(context),
+          Consumer<VocabProvider>(
+            builder: (context, provider, _) {
+              final isAdminViewingClass = provider.isAdmin && provider.adminViewingClassCode != null;
+              if (isAdminViewingClass) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.list_alt),
+                      tooltip: 'Danh sách lớp',
+                      onPressed: () => _showClassListDialog(context, provider),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.logout),
+                      tooltip: 'Đăng xuất',
+                      onPressed: () => _showLogoutDialog(context),
+                    ),
+                  ],
+                );
+              }
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.analytics_outlined),
+                    tooltip: 'Tiến trình',
+                    onPressed: () => Navigator.pushNamed(context, '/progress'),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.person_outline),
+                    tooltip: 'Thông tin cá nhân',
+                    onPressed: () => _showProfileDialog(context),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.logout),
+                    tooltip: 'Đăng xuất',
+                    onPressed: () => _showLogoutDialog(context),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),

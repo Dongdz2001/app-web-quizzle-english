@@ -7,7 +7,10 @@ import '../styles/app_buttons.dart';
 class AddEditWordDialog extends StatefulWidget {
   final Vocabulary word;
 
-  const AddEditWordDialog({super.key, required this.word});
+  /// Chỉ dùng khi sửa từ vựng. Khi user bấm Xóa và xác nhận, callback này được gọi.
+  final Future<void> Function(Vocabulary word)? onDelete;
+
+  const AddEditWordDialog({super.key, required this.word, this.onDelete});
 
   @override
   State<AddEditWordDialog> createState() => _AddEditWordDialogState();
@@ -29,6 +32,8 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
 
   /// Mobile: ẩn các field tùy chọn trong phần thu gọn để dialog gọn, không mất chữ
   bool _showExtraFields = false;
+
+  bool get _isEditMode => widget.word.word.isNotEmpty;
 
   @override
   void initState() {
@@ -113,18 +118,31 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
             widget.word.word.isEmpty ? 'Thêm Từ Vựng' : 'Sửa Từ Vựng',
           ),
           footer: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              OutlinedButton(
-                style: AppButtons.cancle(context),
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Hủy'),
-              ),
-              const SizedBox(width: 12),
-              FilledButton(
-                style: AppButtons.standas(context),
-                onPressed: _onSave,
-                child: const Text('Lưu'),
+              if (_isEditMode && widget.onDelete != null)
+                TextButton.icon(
+                  onPressed: _onDelete,
+                  icon: Icon(Icons.delete_outline, size: 18, color: Colors.red[700]),
+                  label: Text('Xóa', style: TextStyle(color: Colors.red[700], fontWeight: FontWeight.w500)),
+                )
+              else
+                const SizedBox.shrink(),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  OutlinedButton(
+                    style: AppButtons.cancle(context),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Hủy'),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton(
+                    style: AppButtons.standas(context),
+                    onPressed: _onSave,
+                    child: const Text('Lưu'),
+                  ),
+                ],
               ),
             ],
           ),
@@ -371,7 +389,7 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
           color: Colors.grey[600],
         ),
       ),
-      const SizedBox(height: 4),
+      SizedBox(height: spacing),
       Wrap(
         spacing: spacing,
         runSpacing: spacing,
@@ -406,6 +424,30 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
       ),
     ]);
     return fields;
+  }
+
+  Future<void> _onDelete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Xóa từ vựng?'),
+        content: Text('Bạn có chắc muốn xóa "${widget.word.word}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Xóa', style: TextStyle(color: Colors.red[700])),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true && context.mounted) {
+      await widget.onDelete!(widget.word);
+      if (context.mounted) Navigator.pop(context);
+    }
   }
 
   void _onSave() {

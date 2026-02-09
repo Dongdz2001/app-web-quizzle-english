@@ -1,7 +1,8 @@
 /// Firebase configuration for Quizzle English App
-/// 
+///
 /// This file contains Firebase configuration constants.
 /// For Flutter web, Firebase is initialized using these values.
+library;
 
 class FirebaseConfig {
   // Firebase configuration values
@@ -14,16 +15,16 @@ class FirebaseConfig {
   static const String measurementId = "G-RS2F8HC6YY";
 
   /// Get Firebase options for web platform
-  /// 
+  ///
   /// Returns a map containing Firebase configuration options
   /// compatible with Flutter Firebase SDK
   static Map<String, String> get webOptions => {
-        'apiKey': apiKey,
-        'authDomain': authDomain,
-        'projectId': projectId,
-        'storageBucket': storageBucket,
-        'messagingSenderId': messagingSenderId,
-        'appId': appId,
-        'measurementId': measurementId,
-      };
+    'apiKey': apiKey,
+    'authDomain': authDomain,
+    'projectId': projectId,
+    'storageBucket': storageBucket,
+    'messagingSenderId': messagingSenderId,
+    'appId': appId,
+    'measurementId': measurementId,
+  };
 }

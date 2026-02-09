@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderBox, RenderStack;
-import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -13,7 +12,8 @@ import 'package:uuid/uuid.dart';
 import '../models/vocabulary.dart';
 import '../providers/vocab_provider.dart';
 import '../utils/web_speech_stub.dart'
-    if (dart.library.html) '../utils/web_speech.dart' as web_speech;
+    if (dart.library.html) '../utils/web_speech.dart'
+    as web_speech;
 import '../widgets/topic_cloud_view.dart';
 import 'add_edit_word_dialog.dart';
 
@@ -28,6 +28,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   /// Trên mobile landscape: true = hiện AppBar, false = ẩn (vuốt xuống để hiện).
   bool _appBarVisible = false;
   Timer? _hideAppBarTimer;
+
   /// Tooltip nổi ngay dưới con trỏ (web), không bị zoom.
   String? _guideText;
   Offset? _guidePosition;
@@ -123,10 +124,12 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
 
         final width = MediaQuery.of(context).size.width;
         final isMobile = width < 600;
-        final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
-        
+        final isLandscape =
+            MediaQuery.of(context).orientation == Orientation.landscape;
+
         // Hide AppBar in landscape on mobile only if using cloud view (not list view)
-        final hideAppBarInLandscape = !kIsWeb && isLandscape && !_appBarVisible && !isMobile;
+        final hideAppBarInLandscape =
+            !kIsWeb && isLandscape && !_appBarVisible && !isMobile;
 
         return Scaffold(
           extendBodyBehindAppBar: kIsWeb,
@@ -158,20 +161,32 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                               ? null
                               : Icon(
                                   Icons.keyboard_arrow_down,
-                                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface.withOpacity(0.5),
                                   size: 28,
                                 ),
                         ),
                       ),
                     ),
-                  
+
                   // Main Content
                   Expanded(
                     child: topic.words.isEmpty
                         ? _buildEmptyState(context, provider, topicId)
-                        : (isMobile 
-                            ? _buildMobileListView(context, provider, topicId, topic.words)
-                            : _buildCloudView(context, provider, topicId, topic)),
+                        : (isMobile
+                              ? _buildMobileListView(
+                                  context,
+                                  provider,
+                                  topicId,
+                                  topic.words,
+                                )
+                              : _buildCloudView(
+                                  context,
+                                  provider,
+                                  topicId,
+                                  topic,
+                                )),
                   ),
                 ],
               ),
@@ -186,7 +201,11 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, VocabProvider provider, String topicId) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    VocabProvider provider,
+    String topicId,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -209,10 +228,10 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   }
 
   Widget _buildMobileListView(
-    BuildContext context, 
-    VocabProvider provider, 
-    String topicId, 
-    List<Vocabulary> words
+    BuildContext context,
+    VocabProvider provider,
+    String topicId,
+    List<Vocabulary> words,
   ) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -222,9 +241,14 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
         return Card(
           elevation: 2,
           margin: const EdgeInsets.only(bottom: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
             title: Text(
               word.word,
               style: const TextStyle(
@@ -238,7 +262,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
               onPressed: () => _showWordMeaning(context, word),
             ),
             onTap: () => _speakWord(word).catchError((_) {}),
-            onLongPress: () => _showWordContextMenu(context, provider, topicId, word),
+            onLongPress: () =>
+                _showWordContextMenu(context, provider, topicId, word),
           ),
         );
       },
@@ -252,7 +277,11 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           word.word,
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 24),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.blue,
+            fontSize: 24,
+          ),
           textAlign: TextAlign.center,
         ),
         content: SingleChildScrollView(
@@ -262,20 +291,20 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
             children: [
               const Divider(),
               const SizedBox(height: 16),
-              
+
               // Meaning (Tiếng Việt)
               _buildDetailInfoItem(
-                context, 
-                label: 'Nghĩa Tiếng Việt', 
+                context,
+                label: 'Nghĩa Tiếng Việt',
                 content: word.meaning,
                 icon: Icons.translate,
                 color: Colors.indigo,
               ),
 
               // Word forms (N, V, Adj, Adv)
-              if ((word.noun ?? '').isNotEmpty || 
-                  (word.verb ?? '').isNotEmpty || 
-                  (word.adjective ?? '').isNotEmpty || 
+              if ((word.noun ?? '').isNotEmpty ||
+                  (word.verb ?? '').isNotEmpty ||
+                  (word.adjective ?? '').isNotEmpty ||
                   (word.adverb ?? '').isNotEmpty)
                 _buildDetailInfoItem(
                   context,
@@ -283,7 +312,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                   content: [
                     if ((word.noun ?? '').isNotEmpty) "Noun: ${word.noun}",
                     if ((word.verb ?? '').isNotEmpty) "Verb: ${word.verb}",
-                    if ((word.adjective ?? '').isNotEmpty) "Adj: ${word.adjective}",
+                    if ((word.adjective ?? '').isNotEmpty)
+                      "Adj: ${word.adjective}",
                     if ((word.adverb ?? '').isNotEmpty) "Adv: ${word.adverb}",
                   ].join('\n'),
                   icon: Icons.category,
@@ -291,8 +321,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                 ),
 
               // Verb forms (v-ed, v-ing, v-s/es)
-              if ((word.vEd ?? '').isNotEmpty || 
-                  (word.vIng ?? '').isNotEmpty || 
+              if ((word.vEd ?? '').isNotEmpty ||
+                  (word.vIng ?? '').isNotEmpty ||
                   (word.vSes ?? '').isNotEmpty)
                 _buildDetailInfoItem(
                   context,
@@ -307,7 +337,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                 ),
 
               // English Definition
-              if (word.englishDefinition != null && word.englishDefinition!.isNotEmpty)
+              if (word.englishDefinition != null &&
+                  word.englishDefinition!.isNotEmpty)
                 _buildDetailInfoItem(
                   context,
                   label: 'Phiên âm',
@@ -316,7 +347,7 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                   icon: Icons.phonelink_ring,
                   color: Colors.blue,
                 ),
-                
+
               // Synonym (Từ đồng nghĩa)
               if (word.synonym != null && word.synonym!.isNotEmpty)
                 _buildDetailInfoItem(
@@ -338,7 +369,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                 ),
 
               // Creator Info
-              if (word.createdBy?.userName != null && word.createdBy!.userName!.isNotEmpty)
+              if (word.createdBy?.userName != null &&
+                  word.createdBy!.userName!.isNotEmpty)
                 _buildDetailInfoItem(
                   context,
                   label: 'Người tạo',
@@ -352,11 +384,12 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                 _buildDetailInfoItem(
                   context,
                   label: 'Ngày tạo',
-                  content: "${word.createdAt!.day}/${word.createdAt!.month}/${word.createdAt!.year}",
+                  content:
+                      "${word.createdAt!.day}/${word.createdAt!.month}/${word.createdAt!.year}",
                   icon: Icons.calendar_today_outlined,
                   color: Colors.blueGrey,
                 ),
-                
+
               const SizedBox(height: 16),
             ],
           ),
@@ -421,10 +454,10 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   }
 
   Widget _buildCloudView(
-    BuildContext context, 
-    VocabProvider provider, 
+    BuildContext context,
+    VocabProvider provider,
     String topicId,
-    dynamic topic
+    dynamic topic,
   ) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
@@ -439,7 +472,8 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
         scale = scale.clamp(1.0, 10.0);
         final extraW = kIsWeb ? 0.0 : (vw * scale * 0.2);
         final extraH = kIsWeb ? 0.0 : (vh * scale * 0.2);
-        final cw = vw * scale * 1.35 + extraW * 2; // mở rộng ngang hơn để không bị kẹt
+        final cw =
+            vw * scale * 1.35 + extraW * 2; // mở rộng ngang hơn để không bị kẹt
         final ch = vh * scale + extraH * 2;
         return Stack(
           clipBehavior: Clip.none,
@@ -459,10 +493,10 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                   onWordTap: (word) {
                     _speakWord(word).catchError((_) {});
                   },
-                  onWordDoubleTap: (word) => _showEditWordDialog(
-                      context, provider, topicId, word),
-                  onWordLongPress: (word) => _showWordContextMenu(
-                      context, provider, topicId, word),
+                  onWordDoubleTap: (word) =>
+                      _showEditWordDialog(context, provider, topicId, word),
+                  onWordLongPress: (word) =>
+                      _showWordContextMenu(context, provider, topicId, word),
                   onGuideTextChanged: kIsWeb
                       ? (String? text, Offset? position) => setState(() {
                           _guideText = text;
@@ -479,8 +513,14 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                     builder: (BuildContext context) {
                       try {
                         if (_guideText == null) return const SizedBox.shrink();
-                        final stackBox = context.findAncestorRenderObjectOfType<RenderStack>() as RenderBox?;
-                        final localPos = stackBox != null && _guidePosition != null
+                        final stackBox =
+                            context
+                                    .findAncestorRenderObjectOfType<
+                                      RenderStack
+                                    >()
+                                as RenderBox?;
+                        final localPos =
+                            stackBox != null && _guidePosition != null
                             ? stackBox.globalToLocal(_guidePosition!)
                             : null;
                         if (localPos == null) return const SizedBox.shrink();
@@ -527,14 +567,19 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
           tooltip: 'Học',
           onPressed: wordsEmpty
               ? null
-              : () => Navigator.pushNamed(context, '/learn', arguments: topicId),
+              : () =>
+                    Navigator.pushNamed(context, '/learn', arguments: topicId),
         ),
         IconButton(
           icon: const Icon(Icons.fitness_center_outlined),
           tooltip: 'Luyện tập',
           onPressed: wordsEmpty
               ? null
-              : () => Navigator.pushNamed(context, '/practice', arguments: topicId),
+              : () => Navigator.pushNamed(
+                  context,
+                  '/practice',
+                  arguments: topicId,
+                ),
         ),
         IconButton(
           icon: const Icon(Icons.quiz_outlined),
@@ -547,15 +592,15 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
     );
   }
 
-  Future<void> _showAddWordDialog(BuildContext context, VocabProvider provider, String topicId) async {
+  Future<void> _showAddWordDialog(
+    BuildContext context,
+    VocabProvider provider,
+    String topicId,
+  ) async {
     final result = await showDialog<Vocabulary>(
       context: context,
       builder: (_) => AddEditWordDialog(
-        word: Vocabulary(
-          id: Uuid().v4(),
-          word: '',
-          meaning: '',
-        ),
+        word: Vocabulary(id: Uuid().v4(), word: '', meaning: ''),
       ),
     );
     if (result != null && result.word.trim().isNotEmpty) {
@@ -581,7 +626,9 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   ) {
     if (!_isAdmin) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chỉ Admin mới có quyền sửa hoặc xóa từ vựng')),
+        const SnackBar(
+          content: Text('Chỉ Admin mới có quyền sửa hoặc xóa từ vựng'),
+        ),
       );
       return;
     }
@@ -622,14 +669,19 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   ) async {
     if (!_isAdmin) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Chỉ Admin mới có quyền sửa hoặc xóa từ vựng')),
+        const SnackBar(
+          content: Text('Chỉ Admin mới có quyền sửa hoặc xóa từ vựng'),
+        ),
       );
       return;
     }
 
     final result = await showDialog<Vocabulary>(
       context: context,
-      builder: (_) => AddEditWordDialog(word: word),
+      builder: (_) => AddEditWordDialog(
+        word: word,
+        onDelete: (w) async => provider.deleteWord(topicId, w.id),
+      ),
     );
     if (result != null) {
       provider.updateWord(topicId, result);
