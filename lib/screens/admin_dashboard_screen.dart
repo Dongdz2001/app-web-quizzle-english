@@ -48,6 +48,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<String> _classes = [];
   String? _selectedClassInDialog;
 
+  /// Mobile: filter thu gọn, mặc định chỉ hiện search; ấn mới thò thêm lọc/ngày/nút
+  bool _mobileFilterExpanded = false;
+
   @override
   void initState() {
     super.initState();
@@ -1479,137 +1482,163 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ],
                   ),
                 ),
-              // Hai ô nhập full width, dễ thấy và dễ chọn trên mobile
-              TextField(
-                controller: _filterController,
-                enableSuggestions: false,
-                autocorrect: false,
-                spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                decoration: InputDecoration(
-                  labelText: 'Tìm kiếm học sinh',
-                  hintText: 'Email, Tên...',
-                  prefixIcon: const Icon(Icons.search, size: 22),
-                  suffixIcon: _filterController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 20),
-                          onPressed: () {
-                            _filterController.clear();
-                            setState(() {});
-                          },
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                        )
-                      : null,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
-                style: const TextStyle(fontSize: 16),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _prefixFilterController,
-                enableSuggestions: false,
-                autocorrect: false,
-                spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-                decoration: InputDecoration(
-                  labelText: 'Lọc theo đầu số',
-                  hintText: 'VD: user...',
-                  prefixIcon: const Icon(Icons.filter_list, size: 22),
-                  suffixIcon: _prefixFilterController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 20),
-                          onPressed: () {
-                            _prefixFilterController.clear();
-                            setState(() {});
-                          },
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                        )
-                      : null,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                ),
-                style: const TextStyle(fontSize: 16),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 12),
-              // Date + nút hành động wrap xuống dòng
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              // Mặc định chỉ hiện search; nút dropdown mở thêm filter
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    width: 130,
-                    child: _buildDateChip(
-                      context,
-                      date: _startDate,
-                      label: 'Từ ngày',
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _startDate ?? DateTime.now(),
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime.now(),
-                        );
-                        if (picked != null) setState(() => _startDate = picked);
-                      },
-                      onClear: () => setState(() => _startDate = null),
+                  Expanded(
+                    child: TextField(
+                      controller: _filterController,
+                      enableSuggestions: false,
+                      autocorrect: false,
+                      spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                      decoration: InputDecoration(
+                        labelText: 'Tìm kiếm học sinh',
+                        hintText: 'Email, Tên...',
+                        prefixIcon: const Icon(Icons.search, size: 22),
+                        suffixIcon: _filterController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 20),
+                                onPressed: () {
+                                  _filterController.clear();
+                                  setState(() {});
+                                },
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                              )
+                            : null,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        filled: true,
+                        fillColor: Colors.grey[50],
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                      style: const TextStyle(fontSize: 16),
+                      onChanged: (_) => setState(() {}),
                     ),
                   ),
-                  SizedBox(
-                    width: 130,
-                    child: _buildDateChip(
-                      context,
-                      date: _endDate,
-                      label: 'Đến ngày',
-                      onTap: () async {
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: _endDate ?? DateTime.now(),
-                          firstDate: _startDate ?? DateTime(2020),
-                          lastDate: DateTime.now(),
-                        );
-                        if (picked != null) setState(() => _endDate = picked);
-                      },
-                      onClear: () => setState(() => _endDate = null),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _selectedUserIds.isEmpty ? null : _copyAllSelectedAccountsFromIds,
-                    icon: const Icon(Icons.copy_all),
-                    label: const Text('Copy All'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _selectedUserIds.isEmpty ? null : () => _toggleMultipleUsersStatus(true),
-                    icon: const Icon(Icons.block),
-                    label: const Text('Vô hiệu hóa'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: _selectedUserIds.isEmpty ? null : () => _showChangeClassDialog(context),
-                    icon: const Icon(Icons.drive_file_move_outline),
-                    label: const Text('Chuyển lớp'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
+                  const SizedBox(width: 8),
+                  Material(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(12),
+                    child: InkWell(
+                      onTap: () => setState(() => _mobileFilterExpanded = !_mobileFilterExpanded),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        child: Icon(
+                          _mobileFilterExpanded ? Icons.keyboard_arrow_up : Icons.filter_list,
+                          size: 24,
+                          color: Colors.grey[800],
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
+              // Phần filter thêm: chỉ hiện khi mở dropdown
+              if (_mobileFilterExpanded) ...[
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _prefixFilterController,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+                  decoration: InputDecoration(
+                    labelText: 'Lọc theo đầu số',
+                    hintText: 'VD: user...',
+                    prefixIcon: const Icon(Icons.filter_list, size: 22),
+                    suffixIcon: _prefixFilterController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 20),
+                            onPressed: () {
+                              _prefixFilterController.clear();
+                              setState(() {});
+                            },
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                          )
+                        : null,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  ),
+                  style: const TextStyle(fontSize: 16),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 130,
+                      child: _buildDateChip(
+                        context,
+                        date: _startDate,
+                        label: 'Từ ngày',
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _startDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now(),
+                          );
+                          if (picked != null) setState(() => _startDate = picked);
+                        },
+                        onClear: () => setState(() => _startDate = null),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 130,
+                      child: _buildDateChip(
+                        context,
+                        date: _endDate,
+                        label: 'Đến ngày',
+                        onTap: () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            initialDate: _endDate ?? DateTime.now(),
+                            firstDate: _startDate ?? DateTime(2020),
+                            lastDate: DateTime.now(),
+                          );
+                          if (picked != null) setState(() => _endDate = picked);
+                        },
+                        onClear: () => setState(() => _endDate = null),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _selectedUserIds.isEmpty ? null : _copyAllSelectedAccountsFromIds,
+                      icon: const Icon(Icons.copy_all),
+                      label: const Text('Copy All'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _selectedUserIds.isEmpty ? null : () => _toggleMultipleUsersStatus(true),
+                      icon: const Icon(Icons.block),
+                      label: const Text('Vô hiệu hóa'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: _selectedUserIds.isEmpty ? null : () => _showChangeClassDialog(context),
+                      icon: const Icon(Icons.drive_file_move_outline),
+                      label: const Text('Chuyển lớp'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
