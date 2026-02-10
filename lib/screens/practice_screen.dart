@@ -455,7 +455,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
     {Key? key}
   ) {
     final feedbackText = _isCorrect
-        ? (_streak >= 3 ? 'Chuỗi ${_streak} rồi!' : 'Tuyệt vời!')
+        ? (_streak >= 3 ? 'Chuỗi $_streak rồi!' : 'Tuyệt vời!')
         : 'Cố lên, thử lại nhé!';
     final feedbackColor = _isCorrect ? Colors.green[50] : Colors.red[50];
     return Center(

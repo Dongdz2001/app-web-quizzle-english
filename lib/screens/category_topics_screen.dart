@@ -365,24 +365,26 @@ class _GradeCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
                 Icons.school,
-                size: 40,
+                size: 32,
                 color: theme.colorScheme.primary,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
                 'Lớp $grade',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 '$topicCount topic',
                 style: theme.textTheme.bodySmall?.copyWith(

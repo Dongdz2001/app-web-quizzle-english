@@ -178,8 +178,9 @@ class _AddEditTopicDialogState extends State<AddEditTopicDialog> {
                           _selectedCategoryId = value;
                           if (value != CategoryIds.grade) {
                             _selectedGradeLevel = null;
-                          } else
+                          } else {
                             _selectedGradeLevel ??= 1;
+                          }
                         });
                       }
                     },

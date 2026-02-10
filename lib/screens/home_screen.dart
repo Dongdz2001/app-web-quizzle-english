@@ -464,7 +464,8 @@ class _HomeScreenState extends State<HomeScreen> {
       crossAxisCount: 2,
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
-      childAspectRatio: 0.95,
+      // Làm card cao hơn một chút trên mobile để đủ chỗ cho dòng tiêu đề.
+      childAspectRatio: 0.8,
       padding: const EdgeInsets.only(bottom: 24),
       children: kCategories.map((cat) => _CategoryCard(
         category: cat,
@@ -528,41 +529,66 @@ class _CategoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                category.icon,
-                size: 48,
-                color: theme.colorScheme.primary,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Tự động scale icon theo chiều cao card.
+        final cardHeight = constraints.maxHeight;
+        // Giữ icon đủ to nhưng không làm mất chỗ của text trên mobile.
+        final dynamicIconSize = (cardHeight * 0.45).clamp(36.0, 72.0);
+
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    height: dynamicIconSize,
+                    width: dynamicIconSize,
+                    child: FittedBox(
+                      fit: BoxFit.contain,
+                      child: Icon(
+                        category.icon,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                    child: Text(
+                      category.name,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontSize: (theme.textTheme.titleMedium?.fontSize ?? 16),
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$topicCount topic',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize:
+                          (theme.textTheme.bodySmall?.fontSize ?? 12) + 1,
+                      fontWeight: FontWeight.w500,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                category.name,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '$topicCount topic',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
