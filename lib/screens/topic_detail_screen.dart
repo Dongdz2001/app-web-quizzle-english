@@ -281,9 +281,40 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
   }
 
   void _showWordMeaning(BuildContext context, Vocabulary word) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 600;
+    final horizontalInset = isMobile ? 4.0 : 40.0;
+    final dialogWidth = screenWidth - (horizontalInset * 2);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        insetPadding: EdgeInsets.symmetric(
+          horizontal: horizontalInset,
+          vertical: isMobile ? 16 : 24,
+        ),
+        constraints: BoxConstraints(
+          minWidth: isMobile ? dialogWidth : 280,
+          maxWidth: isMobile ? dialogWidth : 560,
+        ),
+        titlePadding: EdgeInsets.fromLTRB(
+          isMobile ? 16 : 24,
+          20,
+          isMobile ? 16 : 24,
+          8,
+        ),
+        contentPadding: EdgeInsets.fromLTRB(
+          isMobile ? 16 : 24,
+          0,
+          isMobile ? 16 : 24,
+          8,
+        ),
+        actionsPadding: EdgeInsets.fromLTRB(
+          isMobile ? 8 : 16,
+          0,
+          isMobile ? 8 : 16,
+          8,
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           word.word,
@@ -294,11 +325,13 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
           ),
           textAlign: TextAlign.center,
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
               const Divider(),
               const SizedBox(height: 16),
 
@@ -400,8 +433,9 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
                   color: Colors.blueGrey,
                 ),
 
-              const SizedBox(height: 16),
-            ],
+                const SizedBox(height: 16),
+              ],
+            ),
           ),
         ),
         actions: [
