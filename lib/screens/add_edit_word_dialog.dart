@@ -26,9 +26,6 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
   late TextEditingController _verbController;
   late TextEditingController _adjController;
   late TextEditingController _advController;
-  late TextEditingController _vEdController;
-  late TextEditingController _vIngController;
-  late TextEditingController _vSesController;
 
   /// Mobile: ẩn các field tùy chọn trong phần thu gọn để dialog gọn, không mất chữ
   bool _showExtraFields = false;
@@ -49,9 +46,6 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
     _verbController = TextEditingController(text: widget.word.verb ?? '');
     _adjController = TextEditingController(text: widget.word.adjective ?? '');
     _advController = TextEditingController(text: widget.word.adverb ?? '');
-    _vEdController = TextEditingController(text: widget.word.vEd ?? '');
-    _vIngController = TextEditingController(text: widget.word.vIng ?? '');
-    _vSesController = TextEditingController(text: widget.word.vSes ?? '');
 
     // Khi sửa và đã có dữ liệu tùy chọn → mở sẵn phần thêm thông tin
     final hasExtra =
@@ -61,10 +55,7 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
         (widget.word.noun ?? '').isNotEmpty ||
         (widget.word.verb ?? '').isNotEmpty ||
         (widget.word.adjective ?? '').isNotEmpty ||
-        (widget.word.adverb ?? '').isNotEmpty ||
-        (widget.word.vEd ?? '').isNotEmpty ||
-        (widget.word.vIng ?? '').isNotEmpty ||
-        (widget.word.vSes ?? '').isNotEmpty;
+        (widget.word.adverb ?? '').isNotEmpty;
     _showExtraFields = hasExtra;
   }
 
@@ -79,9 +70,6 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
     _verbController.dispose();
     _adjController.dispose();
     _advController.dispose();
-    _vEdController.dispose();
-    _vIngController.dispose();
-    _vSesController.dispose();
     super.dispose();
   }
 
@@ -336,52 +324,6 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
       ),
       SizedBox(height: spacing),
       Text(
-        'Dạng của động từ (Tùy chọn)',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Colors.grey[600],
-        ),
-      ),
-      const SizedBox(height: 4),
-      Wrap(
-        spacing: spacing,
-        runSpacing: spacing,
-        children: [
-          SizedBox(
-            width: isMobile ? contentWidth : 230,
-            child: TextField(
-              controller: _vEdController,
-              enableSuggestions: false,
-              autocorrect: false,
-              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: fieldDecoration(label: 'V-ed'),
-            ),
-          ),
-          SizedBox(
-            width: isMobile ? contentWidth : 230,
-            child: TextField(
-              controller: _vIngController,
-              enableSuggestions: false,
-              autocorrect: false,
-              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: fieldDecoration(label: 'V-ing'),
-            ),
-          ),
-          SizedBox(
-            width: isMobile ? contentWidth : 230,
-            child: TextField(
-              controller: _vSesController,
-              enableSuggestions: false,
-              autocorrect: false,
-              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
-              decoration: fieldDecoration(label: 'V-s/es'),
-            ),
-          ),
-        ],
-      ),
-      SizedBox(height: spacing),
-      Text(
         'Nhóm từ (Tùy chọn)',
         style: TextStyle(
           fontSize: 12,
@@ -478,15 +420,9 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
         adverb: _advController.text.trim().isEmpty
             ? null
             : _advController.text.trim(),
-        vEd: _vEdController.text.trim().isEmpty
-            ? null
-            : _vEdController.text.trim(),
-        vIng: _vIngController.text.trim().isEmpty
-            ? null
-            : _vIngController.text.trim(),
-        vSes: _vSesController.text.trim().isEmpty
-            ? null
-            : _vSesController.text.trim(),
+        vEd: null,
+        vIng: null,
+        vSes: null,
         englishDefinition: _englishDefController.text.trim().isEmpty
             ? null
             : _englishDefController.text.trim(),
