@@ -1,0 +1,12 @@
+# Giảm dung lượng upload để dưới 100MB (Vercel limit)
+.git
+.dart_tool
+.pub-cache
+.pub
+android
+ios
+assets/sky_beanch.gif
+# Chỉ giữ build/web, bỏ phần còn lại của build/
+/build/*
+!/build/web
+!/build/web/**

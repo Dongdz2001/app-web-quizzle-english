@@ -186,6 +186,18 @@ class VocabProvider extends ChangeNotifier {
   Future<void> updateWord(String topicId, Vocabulary word) async {
     try {
       await _firebaseService.updateWordInTopic(topicId, word);
+      // Cập nhật local state để UI (đám mây, ghi chú nhanh) phản ánh ngay danh/động/tính/trạng từ
+      final index = _topics.indexWhere((t) => t.id == topicId);
+      if (index != -1) {
+        final topic = _topics[index];
+        final wordIndex = topic.words.indexWhere((w) => w.id == word.id);
+        if (wordIndex != -1) {
+          final newWords = List<Vocabulary>.from(topic.words)..[wordIndex] = word;
+          final newTopic = topic.copyWith(words: newWords);
+          _topics = List<Topic>.from(_topics)..[index] = newTopic;
+          notifyListeners();
+        }
+      }
     } catch (e) {
       print('Error updating word: $e');
       rethrow;

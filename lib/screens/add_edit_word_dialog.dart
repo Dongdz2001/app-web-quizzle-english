@@ -218,11 +218,11 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
         ),
       ),
       SizedBox(height: spacing),
+      // Bật gợi ý/autocorrect để trên mobile có thể gõ tiếng Việt (IME không bị khóa English).
       TextField(
         controller: _meaningController,
-        enableSuggestions: false,
-        autocorrect: false,
-        spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+        enableSuggestions: true,
+        autocorrect: true,
         decoration: fieldDecoration(
           label:
               'Meaning (Nghĩa tiếng Việt)', // Bỏ bắt buộc nhập meaning theo yêu cầu mới là chỉ bắt buộc Word
@@ -340,9 +340,8 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
             width: isMobile ? contentWidth : 230,
             child: TextField(
               controller: _synonymController,
-              enableSuggestions: false,
-              autocorrect: false,
-              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+              enableSuggestions: true,
+              autocorrect: true,
               decoration: fieldDecoration(
                 label: isMobile ? 'Từ đồng nghĩa' : 'Synonym (Từ đồng nghĩa)',
                 hint: isMobile ? '' : 'VD: mom, household...',
@@ -353,9 +352,8 @@ class _AddEditWordDialogState extends State<AddEditWordDialog> {
             width: isMobile ? contentWidth : 230,
             child: TextField(
               controller: _antonymController,
-              enableSuggestions: false,
-              autocorrect: false,
-              spellCheckConfiguration: const SpellCheckConfiguration.disabled(),
+              enableSuggestions: true,
+              autocorrect: true,
               decoration: fieldDecoration(
                 label: isMobile ? 'Từ trái nghĩa' : 'Antonym (Từ trái nghĩa)',
                 hint: isMobile ? '' : 'VD: father, children...',

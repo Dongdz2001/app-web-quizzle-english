@@ -142,9 +142,17 @@ class _TopicDetailScreenState extends State<TopicDetailScreen> {
             children: [
               if (kIsWeb)
                 Positioned.fill(
-                  child: Image.asset(
-                    'assets/sky_beanch.gif',
-                    fit: BoxFit.cover,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.blue.shade100,
+                          Colors.blue.shade50,
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               Column(

@@ -176,6 +176,7 @@ class _TopicCloudViewState extends State<TopicCloudView>
   }
 
   /// So sánh nội dung words với _placements — nếu khác thì cần tính lại placement (sau khi sửa từ).
+  /// Cần so sánh cả danh/động/tính/trạng từ để ghi chú nhanh cập nhật khi sửa.
   bool _wordsContentChanged(List<Vocabulary> words) {
     if (_placements.length != words.length) return true;
     for (var i = 0; i < words.length; i++) {
@@ -184,7 +185,13 @@ class _TopicCloudViewState extends State<TopicCloudView>
       if (a.id != b.id ||
           a.word != b.word ||
           a.meaning != b.meaning ||
-          a.englishDefinition != b.englishDefinition) {
+          a.englishDefinition != b.englishDefinition ||
+          a.noun != b.noun ||
+          a.verb != b.verb ||
+          a.adjective != b.adjective ||
+          a.adverb != b.adverb ||
+          a.synonym != b.synonym ||
+          a.antonym != b.antonym) {
         return true;
       }
     }
@@ -378,6 +385,10 @@ class _TopicCloudViewState extends State<TopicCloudView>
       if (w.wordForm.isNotEmpty) 'Loại từ: ${w.wordForm}',
       if (w.englishDefinition != null && w.englishDefinition!.isNotEmpty)
         'Phiên âm: ${w.englishDefinition}',
+      if (w.noun != null && w.noun!.isNotEmpty) 'Danh từ: ${w.noun}',
+      if (w.verb != null && w.verb!.isNotEmpty) 'Động từ: ${w.verb}',
+      if (w.adjective != null && w.adjective!.isNotEmpty) 'Tính từ: ${w.adjective}',
+      if (w.adverb != null && w.adverb!.isNotEmpty) 'Trạng từ: ${w.adverb}',
       if (w.synonym != null && w.synonym!.isNotEmpty)
         'Đồng nghĩa: ${w.synonym}',
       if (w.antonym != null && w.antonym!.isNotEmpty)
@@ -602,6 +613,8 @@ class _FancyWordGuideBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isNarrow = screenWidth < 600;
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
@@ -615,8 +628,9 @@ class _FancyWordGuideBubble extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 260),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          width: isNarrow ? screenWidth : null,
+          constraints: isNarrow ? BoxConstraints(maxWidth: screenWidth) : const BoxConstraints(maxWidth: 260),
+          padding: isNarrow ? const EdgeInsets.symmetric(horizontal: 0, vertical: 12) : const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface.withValues(alpha: 0.98),
             borderRadius: BorderRadius.circular(18),
@@ -637,31 +651,34 @@ class _FancyWordGuideBubble extends StatelessWidget {
               color: theme.colorScheme.onSurface,
               height: 1.4,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lightbulb_outline,
-                      size: 18,
-                      color: theme.colorScheme.primary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Ghi chú nhanh',
-                      style: theme.textTheme.labelLarge!.copyWith(
-                        fontWeight: FontWeight.bold,
+            child: Padding(
+              padding: EdgeInsets.zero,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.lightbulb_outline,
+                        size: 18,
                         color: theme.colorScheme.primary,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(text),
-              ],
+                      const SizedBox(width: 6),
+                      Text(
+                        'Ghi chú nhanh',
+                        style: theme.textTheme.labelLarge!.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(text),
+                ],
+              ),
             ),
           ),
         ),
