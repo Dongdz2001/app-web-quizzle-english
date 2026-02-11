@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'firebase/firebase_init.dart';
 import 'providers/vocab_provider.dart';
+import 'services/notification_service.dart';
 import 'screens/admin_dashboard_screen.dart';
 import 'screens/category_topics_screen.dart';
 import 'screens/grade_levels_screen.dart';
@@ -32,28 +33,53 @@ void main() async {
     print('App will continue without Firebase authentication');
     // Continue app execution even if Firebase fails
   }
-  
+
   runApp(VocabApp(firebaseInitialized: firebaseInitialized));
 }
 
-class VocabApp extends StatelessWidget {
+class VocabApp extends StatefulWidget {
   final bool firebaseInitialized;
   
   const VocabApp({super.key, this.firebaseInitialized = false});
+
+  @override
+  State<VocabApp> createState() => _VocabAppState();
+}
+
+class _VocabAppState extends State<VocabApp> {
+  @override
+  void initState() {
+    super.initState();
+    _setupDailyReminder();
+  }
+
+  Future<void> _setupDailyReminder() async {
+    try {
+      // Delay a tick so Android activity/UI is ready before showing permission prompt.
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      await NotificationService.instance.initialize();
+      await NotificationService.instance.scheduleDailyReviewReminder();
+    } catch (e) {
+      print('Warning: Notification initialization failed: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => VocabProvider()..loadData(),
       child: MaterialApp(
-        title: 'Vocab Web App - Ghi Nhớ Từ Vựng',
+        title: 'ChiTea English',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         darkTheme: AppTheme.darkTheme,
         themeMode: ThemeMode.light,
         initialRoute: '/',
         routes: {
-          '/': (_) => firebaseInitialized ? const AuthWrapper() : const HomeScreen(),
+          '/': (_) =>
+              widget.firebaseInitialized
+                  ? const AuthWrapper()
+                  : const HomeScreen(),
           '/login': (_) => const LoginScreen(),
           '/admin/login': (_) => const LoginScreen(isAdminLogin: true),
           '/admin': (_) => const AdminDashboardScreen(),
